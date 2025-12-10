@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
 
   export let canvasWidth = 0;
   export let canvasHeight = 0;
@@ -16,11 +16,13 @@
   let dragOffset = { x: 0, y: 0 };
   let resizing = false;
   let resizeHandle = null;
+  let editingItem = null;
+  let inputElement = null;
 
-  export function addTextItem(text, x, y) {
+  export async function createTextItem(x, y) {
     const newItem = {
       id: Date.now(),
-      text,
+      text: '',
       x,
       y,
       fontSize: 16,
@@ -28,11 +30,18 @@
       fontFamily,
       isBold,
       isItalic,
-      width: text.length * 10, // Approximate
-      height: 20
+      width: 200,
+      height: 30,
+      isEditing: true
     };
     textItems = [...textItems, newItem];
     selectedItem = newItem;
+    editingItem = newItem;
+
+    await tick();
+    if (inputElement) {
+      inputElement.focus();
+    }
   }
 
   export function clearAll() {
@@ -68,7 +77,22 @@
     };
   }
 
+  function startEditing(item) {
+    editingItem = item;
+    item.isEditing = true;
+    textItems = textItems;
+  }
+
+  function finishEditing() {
+    if (editingItem) {
+      editingItem.isEditing = false;
+      editingItem = null;
+      textItems = textItems;
+    }
+  }
+
   function handleMouseDown(event, item) {
+    if (item.isEditing) return;
     event.stopPropagation();
 
     const rect = event.currentTarget.parentElement.getBoundingClientRect();
@@ -92,6 +116,10 @@
     }
 
     selectedItem = item;
+  }
+
+  function handleDoubleClick(item) {
+    startEditing(item);
   }
 
   function handleMouseMove(event) {
@@ -152,6 +180,7 @@
     <div
       class="text-item"
       class:selected={selectedItem === item}
+      class:editing={item.isEditing}
       style="
         left: {item.x}px;
         top: {item.y}px;
@@ -161,14 +190,33 @@
         font-weight: {item.isBold ? 'bold' : 'normal'};
         font-style: {item.isItalic ? 'italic' : 'normal'};
         width: {item.width}px;
-        height: {item.height}px;
+        min-height: {item.height}px;
       "
       on:mousedown={(e) => handleMouseDown(e, item)}
+      on:dblclick={() => handleDoubleClick(item)}
       role="button"
       tabindex="0"
     >
-      <span class="text-content">{item.text}</span>
-      {#if selectedItem === item}
+      {#if item.isEditing}
+        <input
+          bind:this={inputElement}
+          type="text"
+          bind:value={item.text}
+          on:blur={finishEditing}
+          on:keydown={(e) => e.key === 'Enter' && finishEditing()}
+          style="
+            font-size: {item.fontSize}px;
+            color: {item.color};
+            font-family: {item.fontFamily}, sans-serif;
+            font-weight: {item.isBold ? 'bold' : 'normal'};
+            font-style: {item.isItalic ? 'italic' : 'normal'};
+            width: 100%;
+          "
+        />
+      {:else}
+        <span class="text-content">{item.text || 'Double-click to edit'}</span>
+      {/if}
+      {#if selectedItem === item && !item.isEditing}
         <div class="resize-handle"></div>
         <button class="delete-btn" on:click={deleteSelected}>×</button>
       {/if}
@@ -189,11 +237,16 @@
     position: absolute;
     cursor: move;
     border: 1px dashed transparent;
-    padding: 2px;
+    padding: 4px;
     user-select: none;
     display: flex;
     align-items: center;
-    white-space: nowrap;
+  }
+
+  .text-item.editing {
+    cursor: text;
+    border-color: #0066ff;
+    background: rgba(255, 255, 255, 0.95);
   }
 
   .text-item.selected {
@@ -203,6 +256,15 @@
 
   .text-content {
     pointer-events: none;
+    white-space: pre;
+  }
+
+  .text-item input {
+    border: none;
+    background: transparent;
+    outline: none;
+    padding: 0;
+    margin: 0;
   }
 
   .resize-handle {

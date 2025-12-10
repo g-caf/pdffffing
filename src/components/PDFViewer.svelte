@@ -45,13 +45,12 @@
   }
 
   function handleCanvasClick(event) {
-    if (isTextMode && textToAdd && textEditor) {
+    if (isTextMode && textEditor) {
       const rect = canvasContainer.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
-      textEditor.addTextItem(textToAdd, x, y);
-      textToAdd = '';
+      textEditor.createTextItem(x, y);
     }
   }
 
@@ -126,45 +125,39 @@
 
     {#if isTextMode}
       <div class="text-options">
-        <div class="option-group">
-          <label>Text:</label>
-          <input
-            type="text"
-            bind:value={textToAdd}
-            placeholder="Enter text to add"
-            class="text-input"
-          />
+        <div class="option-row">
+          <div class="option-group">
+            <label>Font:</label>
+            <select bind:value={fontFamily}>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Courier">Courier</option>
+              <option value="Times-Roman">Times Roman</option>
+            </select>
+          </div>
+
+          <div class="option-group">
+            <label>Color:</label>
+            <input type="color" bind:value={textColor} />
+          </div>
+
+          <div class="option-group checkbox-group">
+            <label>
+              <input type="checkbox" bind:checked={isBold} />
+              Bold
+            </label>
+            <label>
+              <input type="checkbox" bind:checked={isItalic} />
+              Italic
+            </label>
+          </div>
         </div>
 
-        <div class="option-group">
-          <label>Font:</label>
-          <select bind:value={fontFamily}>
-            <option value="Helvetica">Helvetica</option>
-            <option value="Courier">Courier</option>
-            <option value="Times-Roman">Times Roman</option>
-          </select>
-        </div>
-
-        <div class="option-group">
-          <label>Color:</label>
-          <input type="color" bind:value={textColor} />
-        </div>
-
-        <div class="option-group">
-          <label>
-            <input type="checkbox" bind:checked={isBold} />
-            Bold
-          </label>
-          <label>
-            <input type="checkbox" bind:checked={isItalic} />
-            Italic
-          </label>
-        </div>
-
-        <p class="instruction">Click to place text. Drag to move, resize handles to scale. Press Delete to remove selected text.</p>
+        <p class="instruction">
+          Click on PDF to create text box. Type directly in the box. Drag to move, drag corner to resize. Double-click to edit. Press Delete to remove.
+        </p>
 
         <button class="finalize-btn" on:click={handleFinalizeText}>
-          Finalize Text (Add to PDF)
+          Finalize All Text (Add to PDF)
         </button>
       </div>
     {/if}
@@ -245,17 +238,27 @@
     margin-bottom: 20px;
   }
 
+  .option-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
   .option-group {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 12px;
+  }
+
+  .option-group.checkbox-group {
+    gap: 12px;
   }
 
   .option-group label {
     font-size: 14px;
     color: #000;
-    min-width: 50px;
   }
 
   .text-input {
