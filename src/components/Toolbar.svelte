@@ -41,21 +41,23 @@
     padding: 20px;
     border-bottom: 2px solid #000;
     background: #fff;
+    gap: 40px;
   }
 
   h1 {
     margin: 0;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: #000;
     flex-shrink: 0;
+    max-width: 150px;
   }
 
   .actions {
     display: flex;
     gap: 8px;
     margin-left: auto;
-    margin-right: 20px;
+    flex-shrink: 0;
   }
 
   button {

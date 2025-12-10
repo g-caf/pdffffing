@@ -49,6 +49,10 @@
       const updatedBytes = await processor.saveToBytes();
       currentPDF = updatedBytes.buffer;
       hasModifications = true;
+
+      // Force re-render by creating a new processor
+      processor = new PDFProcessor();
+      await processor.loadPDF(currentPDF);
     } catch (error) {
       console.error('Error adding text:', error);
       alert('Failed to add text. Please try again.');

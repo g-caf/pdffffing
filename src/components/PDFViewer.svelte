@@ -13,6 +13,8 @@
   let textToAdd = '';
   let textX = 0;
   let textY = 0;
+  let notification = '';
+  let showNotification = false;
 
   $: if (pdfData && canvas) {
     loadAndRenderPDF();
@@ -49,7 +51,19 @@
         y: textY,
         pageIndex: currentPage - 1
       });
+
+      // Show notification
+      showNotificationMessage('Text added! Download PDF to save changes.');
+      textToAdd = '';
     }
+  }
+
+  function showNotificationMessage(msg) {
+    notification = msg;
+    showNotification = true;
+    setTimeout(() => {
+      showNotification = false;
+    }, 3000);
   }
 
   function toggleTextMode() {
@@ -70,6 +84,10 @@
 </script>
 
 <div class="viewer">
+  {#if showNotification}
+    <div class="notification">{notification}</div>
+  {/if}
+
   {#if pdfData}
     <div class="controls">
       <button on:click={prevPage} disabled={currentPage <= 1}>Previous</button>
@@ -173,5 +191,18 @@
   span {
     font-size: 14px;
     color: #000;
+  }
+
+  .notification {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: #fff;
+    padding: 12px 24px;
+    border: 2px solid #000;
+    font-size: 14px;
+    z-index: 1000;
   }
 </style>
