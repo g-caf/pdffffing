@@ -229,8 +229,12 @@
     position: absolute;
     top: 0;
     left: 0;
-    pointer-events: auto;
+    pointer-events: none;
     z-index: 10;
+  }
+
+  .text-editor-overlay > * {
+    pointer-events: auto;
   }
 
   .text-item {
