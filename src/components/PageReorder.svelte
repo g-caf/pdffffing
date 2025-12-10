@@ -9,13 +9,18 @@
   let pages = [];
   let pageCount = 0;
   let draggedIndex = null;
+  let hasReordered = false;
+  let isLoading = false;
 
-  $: if (pdfData) {
+  $: if (pdfData && !isLoading) {
     loadAllPages();
   }
 
   async function loadAllPages() {
+    if (isLoading) return;
+
     try {
+      isLoading = true;
       pageCount = await renderer.loadPDF(pdfData);
       pages = [];
 
@@ -23,14 +28,18 @@
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
         pages.push({
+          id: `page-${i}-${Date.now()}`,
           index: i,
           canvas: canvas,
           thumbnail: canvas.toDataURL()
         });
       }
       pages = pages; // trigger reactivity
+      hasReordered = false;
     } catch (error) {
       console.error('Error loading pages:', error);
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -55,6 +64,7 @@
 
     pages = newPages;
     draggedIndex = null;
+    hasReordered = true;
 
     // Notify parent of new order
     dispatch('reorder', {
@@ -70,7 +80,7 @@
 <div class="page-reorder">
   <h3>Rearrange Pages (Drag to reorder)</h3>
   <div class="pages-container">
-    {#each pages as page, index (page.index)}
+    {#each pages as page, index (page.id)}
       <div
         class="page-item"
         class:dragging={draggedIndex === index}
@@ -82,7 +92,6 @@
         role="button"
         tabindex="0"
       >
-        <div class="page-number">Page {index + 1}</div>
         <img src={page.thumbnail} alt="Page {index + 1}" />
       </div>
     {/each}
@@ -91,57 +100,42 @@
 
 <style>
   .page-reorder {
-    border: 2px solid #000;
     background: #fff;
-    padding: 20px;
   }
 
   h3 {
     margin: 0 0 16px 0;
-    font-size: 18px;
+    font-size: 16px;
     color: #000;
+    font-weight: normal;
   }
 
   .pages-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     max-height: 600px;
     overflow-y: auto;
-    border: 2px solid #000;
-    padding: 12px;
-    background: #f9f9f9;
   }
 
   .page-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border: 2px solid #000;
-    background: #fff;
     cursor: move;
     transition: opacity 0.2s;
+    border: 2px solid #000;
+    background: #fff;
   }
 
   .page-item:hover {
-    background: #f5f5f5;
+    opacity: 0.8;
   }
 
   .page-item.dragging {
     opacity: 0.4;
   }
 
-  .page-number {
-    font-size: 14px;
-    font-weight: 700;
-    min-width: 60px;
-    color: #000;
-  }
-
   .page-item img {
-    max-width: 150px;
+    width: 100%;
     height: auto;
-    border: 1px solid #000;
+    display: block;
   }
 </style>
