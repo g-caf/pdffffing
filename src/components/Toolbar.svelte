@@ -41,7 +41,8 @@
     padding: 20px;
     border-bottom: 2px solid #000;
     background: #fff;
-    gap: 40px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
 
   h1 {
@@ -50,7 +51,6 @@
     font-weight: 700;
     color: #000;
     flex-shrink: 0;
-    max-width: 150px;
   }
 
   .actions {
@@ -58,6 +58,7 @@
     gap: 8px;
     margin-left: auto;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
   button {

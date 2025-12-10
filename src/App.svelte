@@ -180,6 +180,10 @@
 </div>
 
 <style>
+  :global(html) {
+    background: #fff;
+  }
+
   :global(body) {
     margin: 0;
     padding: 0;
@@ -192,6 +196,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    background: #fff;
   }
 
   main {
@@ -200,6 +205,7 @@
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    background: #fff;
   }
 
   .file-list {
