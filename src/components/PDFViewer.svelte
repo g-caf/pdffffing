@@ -300,16 +300,24 @@
     display: flex;
     justify-content: center;
     overflow: auto;
+    max-height: calc(100vh - 350px);
   }
 
   .canvas-wrapper {
     position: relative;
     display: inline-block;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   canvas {
     border: 1px solid #000;
     display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 350px);
+    height: auto;
+    width: auto;
+    object-fit: contain;
   }
 
   canvas.text-mode {
