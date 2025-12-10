@@ -11,8 +11,9 @@
   let draggedIndex = null;
   let hasReordered = false;
   let isLoading = false;
+  let loadedPdfData = null;
 
-  $: if (pdfData && !isLoading) {
+  $: if (pdfData && pdfData !== loadedPdfData && !isLoading) {
     loadAllPages();
   }
 
@@ -21,6 +22,7 @@
 
     try {
       isLoading = true;
+      loadedPdfData = pdfData;
       pageCount = await renderer.loadPDF(pdfData);
       pages = [];
 
@@ -38,6 +40,7 @@
       hasReordered = false;
     } catch (error) {
       console.error('Error loading pages:', error);
+      alert('Failed to load PDF pages. Please try again.');
     } finally {
       isLoading = false;
     }
