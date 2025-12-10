@@ -10,6 +10,7 @@
   let processor = new PDFProcessor();
   let hasModifications = false;
   let showReorderView = false;
+  let pdfViewer;
 
   async function handleFilesLoaded(event) {
     const { files } = event.detail;
@@ -109,6 +110,15 @@
 
   async function handleDownload() {
     try {
+      // Finalize any pending text additions
+      if (pdfViewer && !showReorderView) {
+        const textCount = pdfViewer.finalizeText();
+        if (textCount > 0) {
+          // Wait a moment for text to be added
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
       let bytesToDownload;
 
       if (hasModifications || loadedFiles.length > 1) {
@@ -172,6 +182,7 @@
         />
       {:else}
         <PDFViewer
+          bind:this={pdfViewer}
           pdfData={currentPDF}
           on:addtext={handleAddText}
         />
