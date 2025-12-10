@@ -140,15 +140,23 @@
             <input type="color" bind:value={textColor} />
           </div>
 
-          <div class="option-group checkbox-group">
-            <label>
-              <input type="checkbox" bind:checked={isBold} />
-              Bold
-            </label>
-            <label>
-              <input type="checkbox" bind:checked={isItalic} />
-              Italic
-            </label>
+          <div class="option-group style-group">
+            <button
+              class="style-btn"
+              class:active={isBold}
+              on:click={() => isBold = !isBold}
+              type="button"
+            >
+              B
+            </button>
+            <button
+              class="style-btn italic"
+              class:active={isItalic}
+              on:click={() => isItalic = !isItalic}
+              type="button"
+            >
+              I
+            </button>
           </div>
         </div>
 
@@ -252,13 +260,42 @@
     gap: 8px;
   }
 
-  .option-group.checkbox-group {
-    gap: 12px;
+  .option-group.style-group {
+    gap: 4px;
   }
 
   .option-group label {
     font-size: 14px;
     color: #000;
+  }
+
+  .style-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .style-btn.italic {
+    font-style: italic;
+    font-weight: normal;
+  }
+
+  .style-btn:hover:not(.active) {
+    background: #f0f0f0;
+  }
+
+  .style-btn.active {
+    background: #333;
+    color: #fff;
   }
 
   .text-input {
@@ -275,6 +312,13 @@
     border: 2px solid #000;
     font-size: 14px;
     background: #fff;
+    color: #000;
+    min-width: 100px;
+  }
+
+  select {
+    cursor: pointer;
+    appearance: auto;
   }
 
   input[type="number"] {
@@ -285,10 +329,6 @@
     width: 50px;
     height: 30px;
     border: 2px solid #000;
-    cursor: pointer;
-  }
-
-  input[type="checkbox"] {
     cursor: pointer;
   }
 
