@@ -1,6 +1,7 @@
 <script>
   import { onMount, createEventDispatcher } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
+  import TextEditor from './TextEditor.svelte';
 
   export let pdfData = null;
   export let currentPage = 1;
@@ -11,15 +12,14 @@
   let pageCount = 0;
   let isTextMode = false;
   let textToAdd = '';
-  let textX = 0;
-  let textY = 0;
   let notification = '';
   let showNotification = false;
-  let fontSize = 12;
   let fontFamily = 'Helvetica';
   let isBold = false;
   let isItalic = false;
   let textColor = '#000000';
+  let textEditor;
+  let canvasContainer;
 
   $: if (pdfData && canvas) {
     loadAndRenderPDF();
@@ -45,38 +45,36 @@
   }
 
   function handleCanvasClick(event) {
-    if (isTextMode && textToAdd) {
-      const rect = canvas.getBoundingClientRect();
-      textX = event.clientX - rect.left;
-      textY = canvas.height - (event.clientY - rect.top); // Flip Y coordinate for PDF
+    if (isTextMode && textToAdd && textEditor) {
+      const rect = canvasContainer.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
 
-      // Convert hex color to RGB
-      const hex = textColor.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16) / 255;
-      const g = parseInt(hex.substr(2, 2), 16) / 255;
-      const b = parseInt(hex.substr(4, 2), 16) / 255;
+      textEditor.addTextItem(textToAdd, x, y);
+      textToAdd = '';
+    }
+  }
 
-      // Determine font name based on selections
-      let font = fontFamily;
-      if (isBold && isItalic) font += '-BoldOblique';
-      else if (isBold) font += '-Bold';
-      else if (isItalic) font += '-Oblique';
+  function handleFinalizeText() {
+    if (textEditor) {
+      const items = textEditor.finalizeAll();
 
-      dispatch('addtext', {
-        text: textToAdd,
-        x: textX,
-        y: textY,
-        pageIndex: currentPage - 1,
-        options: {
-          fontSize: fontSize,
-          fontFamily: font,
-          color: { r, g, b }
-        }
+      items.forEach(item => {
+        dispatch('addtext', {
+          text: item.text,
+          x: item.x,
+          y: item.y,
+          pageIndex: currentPage - 1,
+          options: {
+            fontSize: item.fontSize,
+            fontFamily: item.fontFamily,
+            color: item.color
+          }
+        });
       });
 
-      // Show notification
-      showNotificationMessage('Text added! Download PDF to see changes.');
-      textToAdd = '';
+      textEditor.clearAll();
+      showNotificationMessage(`${items.length} text item(s) added to PDF!`);
     }
   }
 
@@ -148,11 +146,6 @@
         </div>
 
         <div class="option-group">
-          <label>Size:</label>
-          <input type="number" bind:value={fontSize} min="6" max="72" />
-        </div>
-
-        <div class="option-group">
           <label>Color:</label>
           <input type="color" bind:value={textColor} />
         </div>
@@ -168,16 +161,33 @@
           </label>
         </div>
 
-        <p class="instruction">Click on the PDF below to place text</p>
+        <p class="instruction">Click to place text. Drag to move, resize handles to scale. Press Delete to remove selected text.</p>
+
+        <button class="finalize-btn" on:click={handleFinalizeText}>
+          Finalize Text (Add to PDF)
+        </button>
       </div>
     {/if}
 
-    <div class="canvas-container">
-      <canvas
-        bind:this={canvas}
-        class:text-mode={isTextMode}
-        on:click={handleCanvasClick}
-      ></canvas>
+    <div class="canvas-container" bind:this={canvasContainer}>
+      <div class="canvas-wrapper">
+        <canvas
+          bind:this={canvas}
+          class:text-mode={isTextMode}
+          on:click={handleCanvasClick}
+        ></canvas>
+        {#if isTextMode && canvas}
+          <TextEditor
+            bind:this={textEditor}
+            canvasWidth={canvas.width}
+            canvasHeight={canvas.height}
+            {textColor}
+            {fontFamily}
+            {isBold}
+            {isItalic}
+          />
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -292,6 +302,11 @@
     overflow: auto;
   }
 
+  .canvas-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+
   canvas {
     border: 1px solid #000;
     display: block;
@@ -317,5 +332,21 @@
     border: 2px solid #000;
     font-size: 14px;
     z-index: 1000;
+  }
+
+  .finalize-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 16px;
+    border: 2px solid #000;
+    background: #000;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .finalize-btn:hover {
+    background: #333;
   }
 </style>
