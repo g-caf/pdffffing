@@ -2,12 +2,9 @@
   import { createEventDispatcher } from 'svelte';
 
   export let hasFiles = false;
+  export let isViewing = false;
 
   const dispatch = createEventDispatcher();
-
-  function handleMerge() {
-    dispatch('merge');
-  }
 
   function handleDownload() {
     dispatch('download');
@@ -21,12 +18,11 @@
 <div class="toolbar">
   <h1>PDF Editor</h1>
   <div class="actions">
-    <button on:click={handleMerge} disabled={!hasFiles}>
-      Merge PDFs
-    </button>
-    <button on:click={handleDownload} disabled={!hasFiles}>
-      Download PDF
-    </button>
+    {#if isViewing}
+      <button on:click={handleDownload}>
+        Download PDF
+      </button>
+    {/if}
     <button on:click={handleClear} disabled={!hasFiles}>
       Clear All
     </button>

@@ -15,10 +15,20 @@
     const { files } = event.detail;
     loadedFiles = [...loadedFiles, ...files];
 
-    if (loadedFiles.length === 1) {
-      // If only one file, load it directly
-      currentPDF = loadedFiles[0].arrayBuffer;
-      await processor.loadPDF(currentPDF);
+    // Always load/merge files immediately for viewing
+    try {
+      if (loadedFiles.length === 1) {
+        // Single file - load directly
+        currentPDF = loadedFiles[0].arrayBuffer;
+        await processor.loadPDF(currentPDF);
+        showReorderView = false; // Show edit view for single file
+      } else {
+        // Multiple files - merge automatically
+        await handleMergePDFs();
+      }
+    } catch (error) {
+      console.error('Error loading files:', error);
+      alert('Failed to load files. Please try again.');
     }
   }
 
@@ -27,11 +37,19 @@
 
     try {
       const arrayBuffers = loadedFiles.map(f => f.arrayBuffer);
-      await processor.mergePDFs(arrayBuffers);
 
-      const mergedBytes = await processor.saveToBytes();
-      currentPDF = mergedBytes.buffer;
-      hasModifications = true;
+      if (loadedFiles.length === 1) {
+        // Single file case
+        currentPDF = arrayBuffers[0];
+        await processor.loadPDF(currentPDF);
+      } else {
+        // Multiple files - merge them
+        await processor.mergePDFs(arrayBuffers);
+        const mergedBytes = await processor.saveToBytes();
+        currentPDF = mergedBytes.buffer;
+        hasModifications = true;
+      }
+
       showReorderView = true; // Show reorder view after merge
     } catch (error) {
       console.error('Error merging PDFs:', error);
@@ -129,7 +147,7 @@
 <div class="app">
   <Toolbar
     hasFiles={loadedFiles.length > 0}
-    on:merge={handleMergePDFs}
+    isViewing={currentPDF !== null}
     on:download={handleDownload}
     on:clear={handleClear}
   />
@@ -137,17 +155,6 @@
   <main>
     {#if !currentPDF}
       <FileUploader on:filesloaded={handleFilesLoaded} />
-
-      {#if loadedFiles.length > 0}
-        <div class="file-list">
-          <h3>Loaded Files ({loadedFiles.length})</h3>
-          <ul>
-            {#each loadedFiles as file}
-              <li>{file.name}</li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
     {:else}
       <div class="view-toggle">
         <button on:click={toggleView} class:active={showReorderView}>
