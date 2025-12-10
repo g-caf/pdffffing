@@ -199,6 +199,7 @@
 
 <style>
   :global(html) {
+    height: 100%;
     background: #fff;
   }
 
@@ -208,6 +209,12 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #fff;
     color: #000;
+    min-height: 100%;
+  }
+
+  :global(#app) {
+    min-height: 100vh;
+    background: #fff;
   }
 
   .app {
@@ -224,6 +231,7 @@
     margin: 0 auto;
     width: 100%;
     background: #fff;
+    box-sizing: border-box;
   }
 
   .file-list {
