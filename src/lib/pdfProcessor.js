@@ -56,6 +56,22 @@ export class PDFProcessor {
     this.pdfDoc.removePage(pageIndex);
   }
 
+  async reorderPages(newOrder) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+
+    // Create a new PDF with pages in the new order
+    const reorderedPdf = await PDFDocument.create();
+    const pages = this.pdfDoc.getPages();
+
+    for (const pageIndex of newOrder) {
+      const [copiedPage] = await reorderedPdf.copyPages(this.pdfDoc, [pageIndex]);
+      reorderedPdf.addPage(copiedPage);
+    }
+
+    this.pdfDoc = reorderedPdf;
+    return reorderedPdf;
+  }
+
   async extractText(pageIndex) {
     // Note: pdf-lib doesn't support text extraction
     // This would require PDF.js or another library

@@ -1,6 +1,7 @@
 <script>
   import FileUploader from './components/FileUploader.svelte';
   import PDFViewer from './components/PDFViewer.svelte';
+  import PageReorder from './components/PageReorder.svelte';
   import Toolbar from './components/Toolbar.svelte';
   import { PDFProcessor } from './lib/pdfProcessor.js';
 
@@ -8,6 +9,7 @@
   let currentPDF = null;
   let processor = new PDFProcessor();
   let hasModifications = false;
+  let showReorderView = false;
 
   async function handleFilesLoaded(event) {
     const { files } = event.detail;
@@ -30,10 +32,38 @@
       const mergedBytes = await processor.saveToBytes();
       currentPDF = mergedBytes.buffer;
       hasModifications = true;
+      showReorderView = true; // Show reorder view after merge
     } catch (error) {
       console.error('Error merging PDFs:', error);
       alert('Failed to merge PDFs. Please try again.');
     }
+  }
+
+  async function handleReorder(event) {
+    const { newOrder } = event.detail;
+
+    try {
+      if (!processor.pdfDoc) {
+        await processor.loadPDF(currentPDF);
+      }
+
+      await processor.reorderPages(newOrder);
+
+      const reorderedBytes = await processor.saveToBytes();
+      currentPDF = reorderedBytes.buffer;
+      hasModifications = true;
+
+      // Reload processor to reflect changes
+      processor = new PDFProcessor();
+      await processor.loadPDF(currentPDF);
+    } catch (error) {
+      console.error('Error reordering pages:', error);
+      alert('Failed to reorder pages. Please try again.');
+    }
+  }
+
+  function toggleView() {
+    showReorderView = !showReorderView;
   }
 
   async function handleAddText(event) {
@@ -92,6 +122,7 @@
     currentPDF = null;
     processor = new PDFProcessor();
     hasModifications = false;
+    showReorderView = false;
   }
 </script>
 
@@ -118,13 +149,29 @@
         </div>
       {/if}
     {:else}
-      <PDFViewer
-        pdfData={currentPDF}
-        on:addtext={handleAddText}
-      />
+      <div class="view-toggle">
+        <button on:click={toggleView} class:active={showReorderView}>
+          Page Reorder View
+        </button>
+        <button on:click={toggleView} class:active={!showReorderView}>
+          Edit View
+        </button>
+      </div>
+
+      {#if showReorderView}
+        <PageReorder
+          pdfData={currentPDF}
+          on:reorder={handleReorder}
+        />
+      {:else}
+        <PDFViewer
+          pdfData={currentPDF}
+          on:addtext={handleAddText}
+        />
+      {/if}
 
       <div class="actions-footer">
-        <button on:click={() => { currentPDF = null; }}>
+        <button on:click={() => { currentPDF = null; showReorderView = false; }}>
           Load More Files
         </button>
       </div>
@@ -199,6 +246,32 @@
   }
 
   .actions-footer button:hover {
+    background: #000;
+    color: #fff;
+  }
+
+  .view-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #000;
+  }
+
+  .view-toggle button {
+    padding: 8px 16px;
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .view-toggle button:hover {
+    background: #f5f5f5;
+  }
+
+  .view-toggle button.active {
     background: #000;
     color: #fff;
   }
