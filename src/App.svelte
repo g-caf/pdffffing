@@ -67,14 +67,14 @@
   }
 
   async function handleAddText(event) {
-    const { text, x, y, pageIndex } = event.detail;
+    const { text, x, y, pageIndex, options } = event.detail;
 
     try {
       if (!processor.pdfDoc) {
         await processor.loadPDF(currentPDF);
       }
 
-      await processor.addText(pageIndex, text, x, y);
+      await processor.addText(pageIndex, text, x, y, options);
 
       const updatedBytes = await processor.saveToBytes();
       currentPDF = updatedBytes.buffer;

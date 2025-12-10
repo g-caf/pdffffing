@@ -38,9 +38,30 @@ export class PDFProcessor {
     const pages = this.pdfDoc.getPages();
     const page = pages[pageIndex];
 
-    const font = await this.pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Map font family name to StandardFonts
+    const fontName = options.fontFamily || 'Helvetica';
+    let fontKey = StandardFonts.Helvetica;
+
+    if (fontName.includes('Courier')) {
+      if (fontName.includes('BoldOblique')) fontKey = StandardFonts.CourierBoldOblique;
+      else if (fontName.includes('Bold')) fontKey = StandardFonts.CourierBold;
+      else if (fontName.includes('Oblique')) fontKey = StandardFonts.CourierOblique;
+      else fontKey = StandardFonts.Courier;
+    } else if (fontName.includes('Times')) {
+      if (fontName.includes('BoldOblique')) fontKey = StandardFonts.TimesRomanBoldItalic;
+      else if (fontName.includes('Bold')) fontKey = StandardFonts.TimesRomanBold;
+      else if (fontName.includes('Oblique')) fontKey = StandardFonts.TimesRomanItalic;
+      else fontKey = StandardFonts.TimesRoman;
+    } else {
+      if (fontName.includes('BoldOblique')) fontKey = StandardFonts.HelveticaBoldOblique;
+      else if (fontName.includes('Bold')) fontKey = StandardFonts.HelveticaBold;
+      else if (fontName.includes('Oblique')) fontKey = StandardFonts.HelveticaOblique;
+      else fontKey = StandardFonts.Helvetica;
+    }
+
+    const font = await this.pdfDoc.embedFont(fontKey);
     const fontSize = options.fontSize || 12;
-    const color = options.color || rgb(0, 0, 0);
+    const color = options.color ? rgb(options.color.r, options.color.g, options.color.b) : rgb(0, 0, 0);
 
     page.drawText(text, {
       x,
