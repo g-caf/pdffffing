@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
   import { detectFormFields, detectFormFieldsFromDocument, transformRect } from '../lib/formFieldDetector.js';
+  import { VisualFormDetector } from '../lib/visualFormDetector.js';
   import TextEditor from './TextEditor.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
 
@@ -60,6 +61,55 @@
       }
     }
     return allValues;
+  }
+
+  async function detectAndCreateFormFields() {
+    if (!pdfData || pages.length === 0) return;
+
+    try {
+      console.log('Starting visual form field detection...');
+      const allDetectedFields = [];
+
+      // Analyze each page for potential form fields
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const canvas = page.canvas;
+
+        if (!canvas) continue;
+
+        const pdfJsPage = await renderer.getPage(page.pageNum);
+        const pageHeight = pdfJsPage.view[3];
+
+        // Detect form fields visually
+        const detected = VisualFormDetector.detectFormFields(canvas, pageHeight, renderer.scale);
+        const filtered = VisualFormDetector.filterFields(detected);
+
+        console.log(`Page ${page.pageNum}: detected ${filtered.length} potential form fields`);
+
+        allDetectedFields.push({
+          pageIndex: i,
+          pageNum: page.pageNum,
+          fields: filtered
+        });
+      }
+
+      // Dispatch event to add form fields to PDF
+      const totalFields = allDetectedFields.reduce((sum, p) => sum + p.fields.length, 0);
+
+      if (totalFields === 0) {
+        alert('No form fields detected. This PDF may not have visual form elements, or they may be too complex to detect automatically.');
+        return;
+      }
+
+      const confirmed = confirm(`Detected ${totalFields} potential form fields. Add them to the PDF?`);
+
+      if (confirmed) {
+        dispatch('createformfields', { detectedFields: allDetectedFields });
+      }
+    } catch (error) {
+      console.error('Error detecting form fields:', error);
+      alert('Failed to detect form fields. Please try again.');
+    }
   }
 
   // Load on mount
@@ -197,6 +247,13 @@
       <div class="form-notice">
         <span>📝 This PDF contains fillable form fields</span>
       </div>
+    {:else}
+      <div class="form-notice no-fields">
+        <span>ℹ️ No fillable form fields detected</span>
+        <button on:click={detectAndCreateFormFields} class="create-fields-btn">
+          Create Form Fields
+        </button>
+      </div>
     {/if}
 
     {#if isLoading}
@@ -259,6 +316,31 @@
     margin-bottom: 16px;
     font-size: 14px;
     color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .form-notice.no-fields {
+    background: #fff8e6;
+    border-color: #ffa500;
+  }
+
+  .create-fields-btn {
+    padding: 8px 16px;
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .create-fields-btn:hover {
+    background: #000;
+    color: #fff;
   }
 
   .text-options {

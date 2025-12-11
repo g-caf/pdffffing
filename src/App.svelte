@@ -188,6 +188,42 @@
     pdfVersion = 0;
     thumbnailsVersion = 0;
   }
+
+  async function handleCreateFormFields(event) {
+    const { detectedFields } = event.detail;
+
+    try {
+      if (!processor.pdfDoc) {
+        await processor.loadPDF(currentPDF);
+      }
+
+      let totalAdded = 0;
+      let totalFailed = 0;
+
+      // Add form fields for each page
+      for (const pageData of detectedFields) {
+        const result = await processor.addFormFields(pageData.pageIndex, pageData.fields);
+        totalAdded += result.success.length;
+        totalFailed += result.failed.length;
+
+        console.log(`Page ${pageData.pageNum}: added ${result.success.length} fields, failed ${result.failed.length}`);
+      }
+
+      // Save the updated PDF
+      const updatedBytes = await processor.saveToBytes();
+      updateCurrentPDF(updatedBytes.buffer, { isNewDocument: false });
+      hasModifications = true;
+
+      // Reload processor to reflect changes
+      processor = new PDFProcessor();
+      await processor.loadPDF(currentPDF);
+
+      alert(`Successfully added ${totalAdded} form fields!${totalFailed > 0 ? `\n${totalFailed} fields failed to add.` : ''}`);
+    } catch (error) {
+      console.error('Error creating form fields:', error);
+      alert('Failed to create form fields. Please try again.');
+    }
+  }
 </script>
 
 <div class="app">
@@ -223,6 +259,7 @@
           pdfData={currentPDF}
           {pdfVersion}
           on:addtext={handleAddText}
+          on:createformfields={handleCreateFormFields}
         />
       {/if}
 

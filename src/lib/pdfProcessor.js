@@ -187,7 +187,7 @@ export class PDFProcessor {
 
   async flattenForm() {
     if (!this.pdfDoc) throw new Error('No PDF loaded');
-    
+
     try {
       const form = this.pdfDoc.getForm();
       form.flatten();
@@ -195,6 +195,68 @@ export class PDFProcessor {
     } catch (error) {
       console.error('Error flattening form:', error);
       return false;
+    }
+  }
+
+  async addFormFields(pageIndex, fields) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+
+    try {
+      const form = this.pdfDoc.getForm();
+      const pages = this.pdfDoc.getPages();
+      const page = pages[pageIndex];
+
+      if (!page) throw new Error(`Page ${pageIndex} not found`);
+
+      const results = { success: [], failed: [] };
+
+      for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+
+        try {
+          const fieldName = field.name || `field_${pageIndex}_${i}_${Date.now()}`;
+
+          if (field.type === 'text') {
+            const textField = form.createTextField(fieldName);
+            textField.addToPage(page, {
+              x: field.rect[0],
+              y: field.rect[1],
+              width: field.rect[2] - field.rect[0],
+              height: field.rect[3] - field.rect[1]
+            });
+            textField.setText('');
+            textField.enableMultiline();
+            results.success.push(fieldName);
+          } else if (field.type === 'checkbox') {
+            const checkbox = form.createCheckBox(fieldName);
+            checkbox.addToPage(page, {
+              x: field.rect[0],
+              y: field.rect[1],
+              width: field.rect[2] - field.rect[0],
+              height: field.rect[3] - field.rect[1]
+            });
+            results.success.push(fieldName);
+          } else if (field.type === 'radio') {
+            // Radio buttons need a group name
+            const groupName = field.groupName || `radio_group_${pageIndex}_${i}`;
+            const radioGroup = form.getOrCreateRadioGroup(groupName);
+            radioGroup.addOptionToPage(fieldName, page, {
+              x: field.rect[0],
+              y: field.rect[1],
+              width: field.rect[2] - field.rect[0],
+              height: field.rect[3] - field.rect[1]
+            });
+            results.success.push(fieldName);
+          }
+        } catch (error) {
+          results.failed.push({ field, error: error.message });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error adding form fields:', error);
+      throw error;
     }
   }
 }

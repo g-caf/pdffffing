@@ -103,6 +103,35 @@ export async function detectFormFieldsFromDocument(pdfJsDoc) {
   console.log('pdfJsDoc object:', pdfJsDoc);
   console.log('pdfJsDoc has getFieldObjects?', typeof pdfJsDoc?.getFieldObjects);
 
+  // Check for XFA forms
+  try {
+    if (typeof pdfJsDoc.getXfa === 'function') {
+      const xfa = await pdfJsDoc.getXfa();
+      console.log('XFA data:', xfa);
+      if (xfa) {
+        console.log('WARNING: This PDF uses XFA forms, which are not fully supported by PDF.js');
+      }
+    }
+  } catch (e) {
+    console.log('XFA check failed:', e.message);
+  }
+
+  // Check document metadata
+  try {
+    const metadata = await pdfJsDoc.getMetadata();
+    console.log('PDF Metadata:', metadata);
+  } catch (e) {
+    console.log('Metadata check failed:', e.message);
+  }
+
+  // Check if there's a Catalog
+  try {
+    const data = await pdfJsDoc.getData();
+    console.log('PDF has data, length:', data?.length);
+  } catch (e) {
+    console.log('getData failed:', e.message);
+  }
+
   try {
     // Check if document has AcroForm
     const acroForm = await pdfJsDoc.getFieldObjects();
