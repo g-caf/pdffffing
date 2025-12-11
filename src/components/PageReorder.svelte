@@ -9,19 +9,13 @@
   let pages = [];
   let pageCount = 0;
   let draggedIndex = null;
+  let dropTargetIndex = null;
   let hasReordered = false;
   let isLoading = false;
-  let loadedPdfData = null;
-  let skipNextReload = false;
+  let initialLoadDone = false;
 
-  $: if (pdfData && pdfData !== loadedPdfData && !isLoading && !skipNextReload) {
+  $: if (pdfData && !initialLoadDone && !isLoading) {
     loadAllPages();
-  }
-
-  $: if (skipNextReload && pdfData) {
-    // Reset the flag and update loaded reference without reloading
-    skipNextReload = false;
-    loadedPdfData = pdfData;
   }
 
   async function loadAllPages() {
@@ -29,7 +23,6 @@
 
     try {
       isLoading = true;
-      loadedPdfData = pdfData;
       pageCount = await renderer.loadPDF(pdfData);
       pages = [];
 
@@ -38,13 +31,14 @@
         await renderer.renderPage(i, canvas);
         pages.push({
           id: `page-${i}-${Date.now()}`,
-          index: i,
+          originalIndex: i - 1,
           canvas: canvas,
           thumbnail: canvas.toDataURL()
         });
       }
-      pages = pages; // trigger reactivity
+      pages = pages;
       hasReordered = false;
+      initialLoadDone = true;
     } catch (error) {
       console.error('Error loading pages:', error);
       alert('Failed to load PDF pages. Please try again.');
@@ -56,17 +50,31 @@
   function handleDragStart(event, index) {
     draggedIndex = index;
     event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', index.toString());
   }
 
   function handleDragOver(event, index) {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      dropTargetIndex = index;
+    }
+  }
+
+  function handleDragLeave(event, index) {
+    if (dropTargetIndex === index) {
+      dropTargetIndex = null;
+    }
   }
 
   function handleDrop(event, dropIndex) {
     event.preventDefault();
+    dropTargetIndex = null;
 
-    if (draggedIndex === null || draggedIndex === dropIndex) return;
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      draggedIndex = null;
+      return;
+    }
 
     const newPages = [...pages];
     const [removed] = newPages.splice(draggedIndex, 1);
@@ -76,17 +84,14 @@
     draggedIndex = null;
     hasReordered = true;
 
-    // Skip reload when PDF updates from this reorder
-    skipNextReload = true;
-
-    // Notify parent of new order
     dispatch('reorder', {
-      newOrder: pages.map(p => p.index - 1) // Convert to 0-based indices
+      newOrder: pages.map(p => p.originalIndex)
     });
   }
 
   function handleDragEnd() {
     draggedIndex = null;
+    dropTargetIndex = null;
   }
 </script>
 
@@ -97,14 +102,17 @@
       <div
         class="page-item"
         class:dragging={draggedIndex === index}
+        class:drop-target={dropTargetIndex === index}
         draggable="true"
         on:dragstart={(e) => handleDragStart(e, index)}
         on:dragover={(e) => handleDragOver(e, index)}
+        on:dragleave={(e) => handleDragLeave(e, index)}
         on:drop={(e) => handleDrop(e, index)}
         on:dragend={handleDragEnd}
         role="button"
         tabindex="0"
       >
+        <span class="page-number">{index + 1}</span>
         <img src={page.thumbnail} alt="Page {index + 1}" />
       </div>
     {/each}
@@ -132,8 +140,9 @@
   }
 
   .page-item {
+    position: relative;
     cursor: move;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
     border: 2px solid #000;
     background: #fff;
     aspect-ratio: 8.5 / 11;
@@ -144,12 +153,31 @@
   }
 
   .page-item:hover {
-    opacity: 0.8;
     transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .page-item.dragging {
-    opacity: 0.4;
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+
+  .page-item.drop-target {
+    border-color: #0066ff;
+    border-width: 3px;
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.3);
+    transform: scale(1.05);
+  }
+
+  .page-number {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: #000;
+    color: #fff;
+    font-size: 12px;
+    padding: 2px 8px;
+    z-index: 1;
   }
 
   .page-item img {

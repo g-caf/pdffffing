@@ -16,7 +16,7 @@
 </script>
 
 <div class="toolbar">
-  <h1>PDF Editor</h1>
+  <h1 class:clickable={hasFiles} on:click={handleClear} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleClear()}>PDF Editor</h1>
   <div class="actions">
     {#if isViewing}
       <button on:click={handleDownload}>
@@ -47,6 +47,15 @@
     font-weight: 700;
     color: #000;
     flex-shrink: 0;
+  }
+
+  h1.clickable {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  h1.clickable:hover {
+    opacity: 0.6;
   }
 
   .actions {

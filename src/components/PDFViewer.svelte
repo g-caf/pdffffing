@@ -20,6 +20,7 @@
   let textColor = '#000000';
   let textEditor;
   let canvasContainer;
+  let loadedPdfData = null;
 
   export function finalizeText() {
     if (textEditor) {
@@ -41,17 +42,20 @@
     return [];
   }
 
-  $: if (pdfData && canvas) {
+  $: if (pdfData && canvas && pdfData !== loadedPdfData) {
     loadAndRenderPDF();
   }
 
-  $: if (canvas && pdfData && currentPage) {
+  $: if (canvas && pdfData && currentPage && loadedPdfData) {
     renderCurrentPage();
   }
 
   async function loadAndRenderPDF() {
     try {
+      loadedPdfData = pdfData;
+      renderer = new PDFRenderer();
       pageCount = await renderer.loadPDF(pdfData);
+      currentPage = 1;
       await renderCurrentPage();
     } catch (error) {
       console.error('Error loading PDF:', error);

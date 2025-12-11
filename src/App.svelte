@@ -72,7 +72,6 @@
       currentPDF = reorderedBytes.buffer;
       hasModifications = true;
 
-      // Reload processor to reflect changes
       processor = new PDFProcessor();
       await processor.loadPDF(currentPDF);
     } catch (error) {
