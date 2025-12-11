@@ -11,7 +11,11 @@ export class OCRFormDetector {
 
   async initialize() {
     if (!this.worker) {
-      this.worker = await createWorker('eng');
+      console.log('Initializing Tesseract worker...');
+      this.worker = await createWorker('eng', 1, {
+        logger: (m) => console.log('Tesseract:', m),
+      });
+      console.log('Tesseract worker initialized successfully');
     }
   }
 

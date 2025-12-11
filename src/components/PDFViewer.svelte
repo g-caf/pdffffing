@@ -71,6 +71,7 @@
 
     try {
       console.log('Starting OCR form field detection...');
+      isLoading = true;
       editingFields = [];
 
       const ocrDetector = new OCRFormDetector();
@@ -80,10 +81,15 @@
         const page = pages[i];
         const canvas = page.canvas;
 
-        if (!canvas) continue;
+        if (!canvas) {
+          console.warn(`No canvas for page ${i + 1}, skipping`);
+          continue;
+        }
 
         const pdfJsPage = await renderer.getPage(page.pageNum);
         const pageHeight = pdfJsPage.view[3];
+
+        console.log(`Running OCR on page ${page.pageNum}...`);
 
         // Detect form fields using OCR
         const detected = await ocrDetector.detectFormFields(canvas, pageHeight, renderer.scale);
@@ -107,10 +113,22 @@
       await ocrDetector.terminate();
 
       console.log(`Detected ${editingFields.length} total fields for editing`);
+
+      // Enter edit mode even if no fields detected (user can draw their own)
       isFieldEditMode = true;
+      isLoading = false;
+
+      if (editingFields.length === 0) {
+        alert('No form fields detected automatically. You can draw fields manually by clicking and dragging on the PDF.');
+      }
     } catch (error) {
       console.error('Error detecting form fields:', error);
-      alert('Failed to detect form fields. Please try again.');
+      console.error('Error stack:', error.stack);
+      isLoading = false;
+      alert(`Failed to detect form fields: ${error.message}\n\nYou can still draw fields manually.`);
+
+      // Still enter edit mode so user can draw manually
+      isFieldEditMode = true;
     }
   }
 
@@ -291,8 +309,13 @@
       </div>
     </div>
 
-    {#if isLoading}
+    {#if isLoading && !isFieldEditMode}
       <div class="loading">Loading pages...</div>
+    {:else if isLoading && isFieldEditMode}
+      <div class="loading">
+        <div>Detecting form fields with OCR...</div>
+        <div style="font-size: 14px; margin-top: 8px;">This may take a minute. Check browser console for progress.</div>
+      </div>
     {:else}
       <div class="pages-scroll-container">
         {#each pages as page, index (page.pageNum)}
