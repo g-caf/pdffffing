@@ -112,10 +112,28 @@
     try {
       // Finalize any pending text additions
       if (pdfViewer && !showReorderView) {
-        const textCount = pdfViewer.finalizeText();
-        if (textCount > 0) {
-          // Wait a moment for text to be added
-          await new Promise(resolve => setTimeout(resolve, 100));
+        const items = pdfViewer.finalizeText();
+
+        // Add all text items directly to the PDF
+        if (items.length > 0) {
+          if (!processor.pdfDoc) {
+            await processor.loadPDF(currentPDF);
+          }
+
+          for (const item of items) {
+            await processor.addText(
+              item.pageIndex,
+              item.text,
+              item.x,
+              item.y,
+              item.options
+            );
+          }
+
+          // Save the updated PDF
+          const updatedBytes = await processor.saveToBytes();
+          currentPDF = updatedBytes.buffer;
+          hasModifications = true;
         }
       }
 

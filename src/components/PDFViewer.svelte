@@ -24,23 +24,21 @@
   export function finalizeText() {
     if (textEditor) {
       const items = textEditor.finalizeAll();
-      items.forEach(item => {
-        dispatch('addtext', {
-          text: item.text,
-          x: item.x,
-          y: item.y,
-          pageIndex: currentPage - 1,
-          options: {
-            fontSize: item.fontSize,
-            fontFamily: item.fontFamily,
-            color: item.color
-          }
-        });
-      });
+      const formattedItems = items.map(item => ({
+        text: item.text,
+        x: item.x,
+        y: item.y,
+        pageIndex: currentPage - 1,
+        options: {
+          fontSize: item.fontSize,
+          fontFamily: item.fontFamily,
+          color: item.color
+        }
+      }));
       textEditor.clearAll();
-      return items.length;
+      return formattedItems;
     }
-    return 0;
+    return [];
   }
 
   $: if (pdfData && canvas) {
