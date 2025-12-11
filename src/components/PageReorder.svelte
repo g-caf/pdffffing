@@ -114,22 +114,28 @@
   }
 
   .pages-container {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
-    max-height: 600px;
+    max-height: calc(100vh - 250px);
     overflow-y: auto;
   }
 
   .page-item {
     cursor: move;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, transform 0.2s;
     border: 2px solid #000;
     background: #fff;
+    aspect-ratio: 8.5 / 11;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
 
   .page-item:hover {
     opacity: 0.8;
+    transform: scale(1.02);
   }
 
   .page-item.dragging {
@@ -138,7 +144,8 @@
 
   .page-item img {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: contain;
     display: block;
   }
 </style>
