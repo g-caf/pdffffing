@@ -253,12 +253,6 @@
       </div>
     </div>
 
-    {#if hasFormFields}
-      <div class="form-notice">
-        <span>📝 This PDF contains fillable form fields</span>
-      </div>
-    {/if}
-
     {#if isLoading}
       <div class="loading">Loading pages...</div>
     {:else}
@@ -310,15 +304,6 @@
     padding: 40px;
     font-size: 16px;
     color: #666;
-  }
-
-  .form-notice {
-    padding: 12px 16px;
-    background: #f0f7ff;
-    border: 2px solid #0066ff;
-    margin-bottom: 16px;
-    font-size: 14px;
-    color: #000;
   }
 
   .text-options {
