@@ -15,8 +15,8 @@
   let isItalic = false;
   let textColor = '#000000';
   let textEditors = {};
-  let loadedPdfData = null;
   let isLoading = false;
+  let hasLoaded = false;
 
   export function finalizeText() {
     const allItems = [];
@@ -42,25 +42,31 @@
     return allItems;
   }
 
-  $: if (pdfData && pdfData !== loadedPdfData && !isLoading) {
+  onMount(() => {
+    if (pdfData && !hasLoaded) {
+      loadAndRenderAllPages();
+    }
+  });
+
+  $: if (pdfData && hasLoaded) {
+    // PDF data changed after initial load, reload
     loadAndRenderAllPages();
   }
 
   async function loadAndRenderAllPages() {
-    if (isLoading) return;
+    if (isLoading || !pdfData) return;
     
     try {
       isLoading = true;
-      loadedPdfData = pdfData;
       renderer = new PDFRenderer();
       pageCount = await renderer.loadPDF(pdfData);
-      pages = [];
+      const newPages = [];
       textEditors = {};
 
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
-        pages.push({
+        newPages.push({
           pageNum: i,
           canvas: canvas,
           dataUrl: canvas.toDataURL(),
@@ -68,7 +74,8 @@
           height: canvas.height
         });
       }
-      pages = pages;
+      pages = newPages;
+      hasLoaded = true;
     } catch (error) {
       console.error('Error loading PDF:', error);
     } finally {

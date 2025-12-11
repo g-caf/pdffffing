@@ -12,40 +12,45 @@
   let dropTargetIndex = null;
   let hasReordered = false;
   let isLoading = false;
-  let loadedPdfRef = null;
-  let isReorderingInternally = false;
+  let hasLoaded = false;
+  let skipReloadOnce = false;
 
-  $: if (pdfData && pdfData !== loadedPdfRef && !isLoading && !isReorderingInternally) {
+  onMount(() => {
+    if (pdfData && !hasLoaded) {
+      loadAllPages();
+    }
+  });
+
+  $: if (pdfData && hasLoaded && !skipReloadOnce) {
     loadAllPages();
   }
 
-  $: if (isReorderingInternally && pdfData) {
-    isReorderingInternally = false;
-    loadedPdfRef = pdfData;
+  $: if (skipReloadOnce && pdfData) {
+    skipReloadOnce = false;
   }
 
   async function loadAllPages() {
-    if (isLoading) return;
+    if (isLoading || !pdfData) return;
 
     try {
       isLoading = true;
-      loadedPdfRef = pdfData;
       renderer = new PDFRenderer();
       pageCount = await renderer.loadPDF(pdfData);
-      pages = [];
+      const newPages = [];
 
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
-        pages.push({
+        newPages.push({
           id: `page-${i}-${Date.now()}`,
           originalIndex: i - 1,
           canvas: canvas,
           thumbnail: canvas.toDataURL()
         });
       }
-      pages = pages;
+      pages = newPages;
       hasReordered = false;
+      hasLoaded = true;
     } catch (error) {
       console.error('Error loading pages:', error);
       alert('Failed to load PDF pages. Please try again.');
@@ -90,7 +95,7 @@
     pages = newPages;
     draggedIndex = null;
     hasReordered = true;
-    isReorderingInternally = true;
+    skipReloadOnce = true;
 
     dispatch('reorder', {
       newOrder: pages.map(p => p.originalIndex)
