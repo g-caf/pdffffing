@@ -247,13 +247,14 @@
         </button>
       </div>
 
-      {#if showReorderView}
+      <div style="display: {showReorderView ? 'block' : 'none'}">
         <PageReorder
           pdfData={currentPDF}
           {thumbnailsVersion}
           on:reorder={handleReorder}
         />
-      {:else}
+      </div>
+      <div style="display: {showReorderView ? 'none' : 'block'}">
         <PDFViewer
           bind:this={pdfViewer}
           pdfData={currentPDF}
@@ -261,7 +262,7 @@
           on:addtext={handleAddText}
           on:createformfields={handleCreateFormFields}
         />
-      {/if}
+      </div>
 
       <div class="actions-footer">
         <FileUploader compact={true} buttonText="Load More Files" on:filesloaded={handleFilesLoaded} />
