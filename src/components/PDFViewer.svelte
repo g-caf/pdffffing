@@ -304,7 +304,7 @@
           </button>
         </div>
 
-        {#if !hasFormFields && !isFieldEditMode}
+        {#if !isFieldEditMode}
           <div class="option-group">
             <button
               class="style-btn create-fields-btn"
