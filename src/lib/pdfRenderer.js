@@ -12,7 +12,9 @@ export class PDFRenderer {
   }
 
   async loadPDF(arrayBuffer) {
-    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    // Make a copy of the ArrayBuffer to avoid PDF.js detaching/consuming the original
+    const copy = arrayBuffer.slice(0);
+    const loadingTask = pdfjsLib.getDocument({ data: copy });
     this.pdfDoc = await loadingTask.promise;
     this.pageCount = this.pdfDoc.numPages;
     return this.pageCount;
