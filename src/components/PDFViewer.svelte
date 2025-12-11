@@ -5,6 +5,7 @@
   import { VisualFormDetector } from '../lib/visualFormDetector.js';
   import TextEditor from './TextEditor.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
+  import FormFieldEditor from './FormFieldEditor.svelte';
 
   export let pdfData = null;
   export let pdfVersion = 0;
@@ -23,6 +24,8 @@
   let formFieldOverlays = {};
   let isLoading = false;
   let hasFormFields = false;
+  let isFieldEditMode = false;
+  let editingFields = [];
 
   let lastLoadedVersion = -1;
   let loadId = 0;
@@ -63,12 +66,12 @@
     return allValues;
   }
 
-  async function detectAndCreateFormFields() {
+  async function enterFieldEditMode() {
     if (!pdfData || pages.length === 0) return;
 
     try {
       console.log('Starting visual form field detection...');
-      const allDetectedFields = [];
+      editingFields = [];
 
       // Analyze each page for potential form fields
       for (let i = 0; i < pages.length; i++) {
@@ -86,27 +89,55 @@
 
         console.log(`Page ${page.pageNum}: detected ${filtered.length} potential form fields`);
 
-        allDetectedFields.push({
-          pageIndex: i,
-          pageNum: page.pageNum,
-          fields: filtered
+        // Add page index to each field and unique ID
+        filtered.forEach((field, idx) => {
+          field.pageIndex = i;
+          field.pageNum = page.pageNum;
+          field.id = `detected-${i}-${idx}-${Date.now()}`;
         });
+
+        editingFields.push(...filtered);
       }
 
-      // Dispatch event to add form fields to PDF
-      const totalFields = allDetectedFields.reduce((sum, p) => sum + p.fields.length, 0);
-
-      if (totalFields === 0) {
-        alert('No form fields detected. This PDF may not have visual form elements like horizontal lines for text inputs.');
-        return;
-      }
-
-      console.log(`Auto-creating ${totalFields} form fields...`);
-      dispatch('createformfields', { detectedFields: allDetectedFields });
+      console.log(`Detected ${editingFields.length} total fields for editing`);
+      isFieldEditMode = true;
     } catch (error) {
       console.error('Error detecting form fields:', error);
       alert('Failed to detect form fields. Please try again.');
     }
+  }
+
+  function handleApplyFields(event) {
+    const { fields } = event.detail;
+
+    // Group fields by page
+    const fieldsByPage = [];
+    for (const field of fields) {
+      const pageIndex = field.pageIndex;
+
+      if (!fieldsByPage[pageIndex]) {
+        fieldsByPage[pageIndex] = {
+          pageIndex,
+          pageNum: field.pageNum,
+          fields: []
+        };
+      }
+
+      fieldsByPage[pageIndex].fields.push(field);
+    }
+
+    // Filter out empty pages
+    const detectedFields = fieldsByPage.filter(p => p && p.fields.length > 0);
+
+    console.log(`Applying ${fields.length} fields to PDF...`);
+    dispatch('createformfields', { detectedFields });
+    isFieldEditMode = false;
+    editingFields = [];
+  }
+
+  function handleCancelFieldEdit() {
+    isFieldEditMode = false;
+    editingFields = [];
   }
 
   // Load on mount
@@ -238,13 +269,13 @@
           </button>
         </div>
 
-        {#if !hasFormFields}
+        {#if !hasFormFields && !isFieldEditMode}
           <div class="option-group">
             <button
               class="style-btn create-fields-btn"
-              on:click={detectAndCreateFormFields}
+              on:click={enterFieldEditMode}
               type="button"
-              title="Detect and create form fields"
+              title="Edit form fields"
             >
               +F
             </button>
@@ -262,9 +293,19 @@
             <div class="page-label">Page {page.pageNum}{#if page.formFields?.length > 0} ({page.formFields.length} fields){/if}</div>
             <div class="canvas-container">
               <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
-                <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode && !page.formFields?.length} />
-                
-                {#if page.formFields?.length > 0}
+                <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode && !page.formFields?.length && !isFieldEditMode} />
+
+                {#if isFieldEditMode}
+                  <FormFieldEditor
+                    bind:fields={editingFields}
+                    pageWidth={page.width}
+                    pageHeight={page.height}
+                    {index}
+                    showControls={index === pages.length - 1}
+                    on:apply={handleApplyFields}
+                    on:cancel={handleCancelFieldEdit}
+                  />
+                {:else if page.formFields?.length > 0}
                   <FormFieldOverlay
                     bind:this={formFieldOverlays[index]}
                     fields={page.formFields}
