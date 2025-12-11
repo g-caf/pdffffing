@@ -124,7 +124,10 @@
   }
 
   function handleDoubleClick(item) {
-    startEditing(item);
+    // Don't allow editing of checkmarks
+    if (!item.isCheckmark) {
+      startEditing(item);
+    }
   }
 
   function handleMouseMove(event) {
@@ -206,7 +209,8 @@
       isItalic: false,
       width: 30,
       height: 30,
-      isEditing: false
+      isEditing: false,
+      isCheckmark: true  // Mark this as a checkmark so we don't allow editing
     };
     textItems = [...textItems, checkmarkItem];
   }
@@ -259,10 +263,12 @@
           "
         />
       {:else}
-        <span class="text-content">{item.text || 'Double-click to edit'}</span>
+        <span class="text-content">{item.text || (item.isCheckmark ? '✓' : 'Double-click to edit')}</span>
       {/if}
       {#if selectedItem === item && !item.isEditing}
-        <div class="resize-handle"></div>
+        {#if !item.isCheckmark}
+          <div class="resize-handle"></div>
+        {/if}
         <button class="delete-btn" on:click={deleteSelected}>×</button>
       {/if}
     </div>
