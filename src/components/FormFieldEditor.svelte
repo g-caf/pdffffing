@@ -12,14 +12,14 @@
   let selectedField = null;
   let draggedField = null;
   let dragOffset = { x: 0, y: 0 };
-  let isDrawing = false;
-  let drawStart = null;
 
   // Filter to only show fields for this page
   $: pageFields = fields.filter(f => f.pageIndex === pageIndex);
 
   function handleMouseDown(event, field) {
     if (event.target.classList.contains('delete-btn')) return;
+    if (event.target.classList.contains('field-controls')) return;
+    if (event.target.closest('.field-controls')) return;
 
     selectedField = field;
     draggedField = field;
@@ -38,62 +38,33 @@
       const x = event.clientX - rect.left - dragOffset.x;
       const y = event.clientY - rect.top - dragOffset.y;
 
-      // Update field position
+      // Calculate current width and height
+      const width = draggedField.rect[2] - draggedField.rect[0];
+      const height = draggedField.rect[3] - draggedField.rect[1];
+
+      // Update field position (keeping size constant)
       draggedField.rect[0] = x;
       draggedField.rect[1] = y;
-      draggedField.rect[2] = x + (draggedField.rect[2] - draggedField.rect[0]);
-      draggedField.rect[3] = y + (draggedField.rect[3] - draggedField.rect[1]);
+      draggedField.rect[2] = x + width;
+      draggedField.rect[3] = y + height;
 
       fields = fields; // Trigger reactivity
-    } else if (isDrawing && drawStart) {
-      // Update draw preview
-      fields = fields;
     }
   }
 
   function handleMouseUp() {
     draggedField = null;
-
-    if (isDrawing && drawStart) {
-      // Finish drawing new field
-      isDrawing = false;
-      drawStart = null;
-    }
   }
 
-  function handleContainerMouseDown(event) {
+  function handleContainerClick(event) {
+    // Only create field if clicking directly on the container (not on existing field)
     if (event.target.classList.contains('overlay-container')) {
-      // Start drawing new field
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
-      drawStart = { x, y };
-      isDrawing = true;
-    }
-  }
-
-  function handleContainerMouseUp(event) {
-    if (isDrawing && drawStart) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-
-      const width = Math.abs(x - drawStart.x);
-      const height = Math.abs(y - drawStart.y);
-
-      // Only create if dragged enough
-      if (width > 20 && height > 10) {
-        addNewField(
-          Math.min(drawStart.x, x),
-          Math.min(drawStart.y, y),
-          width,
-          height
-        );
-      }
-
-      isDrawing = false;
-      drawStart = null;
+      // Create field instantly at click position
+      addNewField(x, y);
     }
   }
 
@@ -121,26 +92,31 @@
     dispatch('cancel');
   }
 
-  function addNewField(x, y, width, height) {
+  function addNewField(x, y) {
+    // Default field size: 200px wide, 24px tall
+    const defaultWidth = 200;
+    const defaultHeight = 24;
+
     const newField = {
       type: 'text',
-      rect: [x, y, x + width, y + height],
+      rect: [x, y, x + defaultWidth, y + defaultHeight],
       confidence: 'manual',
-      detectionMethod: 'user-drawn',
+      detectionMethod: 'user-created',
       id: `manual-${pageIndex}-${Date.now()}`,
       pageIndex: pageIndex
     };
 
     fields = [...fields, newField];
+    selectedField = newField; // Auto-select the new field
   }
 </script>
 
 <div
   class="overlay-container"
   style="width: {pageWidth}px; height: {pageHeight}px;"
-  on:mousedown={handleContainerMouseDown}
+  on:click={handleContainerClick}
   on:mousemove={handleMouseMove}
-  on:mouseup={handleContainerMouseUp}
+  on:mouseup={handleMouseUp}
   on:mouseleave={handleMouseUp}
   role="application"
   tabindex="-1"
@@ -172,25 +148,13 @@
       {/if}
     </div>
   {/each}
-
-  {#if isDrawing && drawStart}
-    <div
-      class="draw-preview"
-      style="
-        left: {drawStart.x}px;
-        top: {drawStart.y}px;
-        width: 100px;
-        height: 20px;
-      "
-    />
-  {/if}
 </div>
 
 {#if showControls}
   <div class="editor-controls">
     <div class="info">
       <span>{fields.length} field{fields.length !== 1 ? 's' : ''} total</span>
-      <span class="help">• Drag to move • Click + drag empty space to add • Click field to select</span>
+      <span class="help">• Click to add field • Drag field to move • Click field to select and change type</span>
     </div>
     <div class="buttons">
       <button class="cancel-btn" on:click={cancel}>Cancel</button>
@@ -292,13 +256,6 @@
 
   .field-controls button:hover {
     background: #f0f0f0;
-  }
-
-  .draw-preview {
-    position: absolute;
-    border: 2px dashed #00cc00;
-    background: rgba(0, 255, 0, 0.1);
-    pointer-events: none;
   }
 
   .editor-controls {
