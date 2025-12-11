@@ -190,10 +190,10 @@
     {:else}
       <div class="view-toggle">
         <button on:click={toggleView} class:active={showReorderView}>
-          Page Reorder View
+          Reorder
         </button>
         <button on:click={toggleView} class:active={!showReorderView}>
-          Edit View
+          Edit
         </button>
       </div>
 
