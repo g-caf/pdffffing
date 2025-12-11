@@ -322,7 +322,7 @@
           <div class="page-wrapper">
             <div class="page-label">Page {page.pageNum}{#if page.formFields?.length > 0} ({page.formFields.length} fields){/if}</div>
             <div class="canvas-container">
-              <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
+              <div class="canvas-wrapper" style="aspect-ratio: {page.width}/{page.height};">
                 <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode && !page.formFields?.length && !isFieldEditMode} />
 
                 {#if isFieldEditMode}
@@ -492,14 +492,14 @@
     position: relative;
     display: inline-block;
     max-width: 100%;
+    width: 100%;
   }
 
   .page-image {
     border: 1px solid #000;
     display: block;
-    max-width: 100%;
+    width: 100%;
     height: auto;
-    width: auto;
   }
 
   .page-image.text-mode {

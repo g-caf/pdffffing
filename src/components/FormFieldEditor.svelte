@@ -16,6 +16,10 @@
   // Filter to only show fields for this page
   $: pageFields = fields.filter(f => f.pageIndex === pageIndex);
 
+  // Calculate scale factor: canvas dimensions vs rendered dimensions
+  $: scaleX = pageWidth > 0 ? 100 / pageWidth : 1;
+  $: scaleY = pageHeight > 0 ? 100 / pageHeight : 1;
+
   function handleMouseDown(event, field) {
     if (event.target.classList.contains('delete-btn')) return;
     if (event.target.classList.contains('field-controls')) return;
@@ -38,15 +42,19 @@
       const x = event.clientX - rect.left - dragOffset.x;
       const y = event.clientY - rect.top - dragOffset.y;
 
-      // Calculate current width and height
+      // Convert from rendered pixels to canvas pixels
+      const canvasX = (x / rect.width) * pageWidth;
+      const canvasY = (y / rect.height) * pageHeight;
+
+      // Calculate current width and height (in canvas coordinates)
       const width = draggedField.rect[2] - draggedField.rect[0];
       const height = draggedField.rect[3] - draggedField.rect[1];
 
       // Update field position (keeping size constant)
-      draggedField.rect[0] = x;
-      draggedField.rect[1] = y;
-      draggedField.rect[2] = x + width;
-      draggedField.rect[3] = y + height;
+      draggedField.rect[0] = canvasX;
+      draggedField.rect[1] = canvasY;
+      draggedField.rect[2] = canvasX + width;
+      draggedField.rect[3] = canvasY + height;
 
       fields = fields; // Trigger reactivity
     }
@@ -63,8 +71,12 @@
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
+      // Convert from rendered pixels to canvas pixels
+      const canvasX = (x / rect.width) * pageWidth;
+      const canvasY = (y / rect.height) * pageHeight;
+
       // Create field instantly at click position
-      addNewField(x, y);
+      addNewField(canvasX, canvasY);
     }
   }
 
@@ -113,7 +125,6 @@
 
 <div
   class="overlay-container"
-  style="width: {pageWidth}px; height: {pageHeight}px;"
   on:click={handleContainerClick}
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
@@ -128,10 +139,10 @@
       class:text-field={field.type === 'text'}
       class:checkbox-field={field.type === 'checkbox'}
       style="
-        left: {field.rect[0]}px;
-        top: {field.rect[1]}px;
-        width: {field.rect[2] - field.rect[0]}px;
-        height: {field.rect[3] - field.rect[1]}px;
+        left: {field.rect[0] * scaleX}%;
+        top: {field.rect[1] * scaleY}%;
+        width: {(field.rect[2] - field.rect[0]) * scaleX}%;
+        height: {(field.rect[3] - field.rect[1]) * scaleY}%;
       "
       on:mousedown={(e) => handleMouseDown(e, field)}
       role="button"
@@ -168,6 +179,8 @@
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     cursor: crosshair;
     z-index: 100;
   }

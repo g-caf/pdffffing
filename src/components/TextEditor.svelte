@@ -19,6 +19,10 @@
   let editingItem = null;
   let inputElement = null;
 
+  // Calculate scale factor for percentage-based positioning
+  $: scaleX = canvasWidth > 0 ? 100 / canvasWidth : 1;
+  $: scaleY = canvasHeight > 0 ? 100 / canvasHeight : 1;
+
   export async function createTextItem(x, y) {
     const newItem = {
       id: Date.now(),
@@ -129,9 +133,13 @@
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
+    // Convert to canvas coordinates
+    const canvasMouseX = (mouseX / rect.width) * canvasWidth;
+    const canvasMouseY = (mouseY / rect.height) * canvasHeight;
+
     if (resizing && resizeHandle) {
-      const newWidth = Math.max(20, mouseX - resizeHandle.x);
-      const newHeight = Math.max(10, mouseY - resizeHandle.y);
+      const newWidth = Math.max(20, canvasMouseX - resizeHandle.x);
+      const newHeight = Math.max(10, canvasMouseY - resizeHandle.y);
 
       // Scale font size proportionally
       const scaleFactor = newHeight / resizeHandle.height;
@@ -141,8 +149,8 @@
 
       textItems = textItems;
     } else if (draggedItem) {
-      draggedItem.x = mouseX - dragOffset.x;
-      draggedItem.y = mouseY - dragOffset.y;
+      draggedItem.x = canvasMouseX - dragOffset.x;
+      draggedItem.y = canvasMouseY - dragOffset.y;
       textItems = textItems;
     }
   }
@@ -171,7 +179,12 @@
       const rect = event.currentTarget.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      await createTextItem(x, y);
+
+      // Convert to canvas coordinates
+      const canvasX = (x / rect.width) * canvasWidth;
+      const canvasY = (y / rect.height) * canvasHeight;
+
+      await createTextItem(canvasX, canvasY);
     }
   }
 </script>
@@ -180,7 +193,6 @@
 
 <div
   class="text-editor-overlay"
-  style="width: {canvasWidth}px; height: {canvasHeight}px;"
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
   on:click={handleOverlayClick}
@@ -192,14 +204,14 @@
       class:selected={selectedItem === item}
       class:editing={item.isEditing}
       style="
-        left: {item.x}px;
-        top: {item.y}px;
+        left: {item.x * scaleX}%;
+        top: {item.y * scaleY}%;
         font-size: {item.fontSize}px;
         color: {item.color};
         font-family: {item.fontFamily}, sans-serif;
         font-weight: {item.isBold ? 'bold' : 'normal'};
         font-style: {item.isItalic ? 'italic' : 'normal'};
-        width: {item.width}px;
+        width: {item.width * scaleX}%;
         min-height: {item.height}px;
       "
       on:mousedown={(e) => handleMouseDown(e, item)}
@@ -239,6 +251,8 @@
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: auto;
     z-index: 10;
     cursor: crosshair;
