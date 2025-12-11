@@ -200,15 +200,15 @@
     const checkmarkItem = {
       id: Date.now(),
       text: '✓',
-      x,
-      y,
+      x: x - 4,  // Adjust for padding
+      y: y - 4,  // Adjust for padding
       fontSize: 24,
       color: textColor,
       fontFamily: 'Arial',
       isBold: true,
       isItalic: false,
-      width: 30,
-      height: 30,
+      width: 24,  // Make width equal to height for square aspect ratio
+      height: 24,
       isEditing: false,
       isCheckmark: true  // Mark this as a checkmark so we don't allow editing
     };
@@ -230,6 +230,7 @@
       class="text-item"
       class:selected={selectedItem === item}
       class:editing={item.isEditing}
+      class:checkmark={item.isCheckmark}
       style="
         left: {item.x * scaleX}%;
         top: {item.y * scaleY}%;
@@ -306,6 +307,14 @@
   .text-item.selected {
     border-color: #0066ff;
     background: rgba(0, 102, 255, 0.05);
+  }
+
+  .text-item.checkmark {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
   }
 
   .text-content {
