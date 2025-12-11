@@ -237,19 +237,25 @@
             I
           </button>
         </div>
+
+        {#if !hasFormFields}
+          <div class="option-group">
+            <button
+              class="style-btn create-fields-btn"
+              on:click={detectAndCreateFormFields}
+              type="button"
+              title="Detect and create form fields"
+            >
+              +F
+            </button>
+          </div>
+        {/if}
       </div>
     </div>
 
     {#if hasFormFields}
       <div class="form-notice">
         <span>📝 This PDF contains fillable form fields</span>
-      </div>
-    {:else}
-      <div class="form-notice no-fields">
-        <span>ℹ️ No fillable form fields detected</span>
-        <button on:click={detectAndCreateFormFields} class="create-fields-btn">
-          Create Form Fields
-        </button>
       </div>
     {/if}
 
@@ -313,31 +319,6 @@
     margin-bottom: 16px;
     font-size: 14px;
     color: #000;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  .form-notice.no-fields {
-    background: #fff8e6;
-    border-color: #ffa500;
-  }
-
-  .create-fields-btn {
-    padding: 8px 16px;
-    border: 2px solid #000;
-    background: #fff;
-    color: #000;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .create-fields-btn:hover {
-    background: #000;
-    color: #fff;
   }
 
   .text-options {
