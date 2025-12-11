@@ -6,6 +6,10 @@
 
   let fieldValues = {};
 
+  // Calculate scale factor for percentage-based positioning
+  $: scaleX = pageWidth > 0 ? 100 / pageWidth : 1;
+  $: scaleY = pageHeight > 0 ? 100 / pageHeight : 1;
+
   $: {
     fields.forEach(field => {
       if (!(field.id in fieldValues)) {
@@ -42,7 +46,6 @@
 
 <div
   class="form-field-overlay"
-  style="width: {pageWidth}px; height: {pageHeight}px;"
 >
   {#each fields as field (field.id)}
     {#if field.type === 'text'}
@@ -50,10 +53,10 @@
         class="field-wrapper"
         class:required={field.required}
         style="
-          left: {field.rect.x}px;
-          top: {field.rect.y}px;
-          width: {field.rect.width}px;
-          height: {field.rect.height}px;
+          left: {field.rect.x * scaleX}%;
+          top: {field.rect.y * scaleY}%;
+          width: {field.rect.width * scaleX}%;
+          height: {field.rect.height * scaleY}%;
         "
       >
         {#if field.required}
@@ -81,10 +84,10 @@
         class="field-wrapper checkbox-wrapper"
         class:required={field.required}
         style="
-          left: {field.rect.x}px;
-          top: {field.rect.y}px;
-          width: {field.rect.width}px;
-          height: {field.rect.height}px;
+          left: {field.rect.x * scaleX}%;
+          top: {field.rect.y * scaleY}%;
+          width: {field.rect.width * scaleX}%;
+          height: {field.rect.height * scaleY}%;
         "
       >
         {#if field.required}
@@ -102,10 +105,10 @@
         class="field-wrapper"
         class:required={field.required}
         style="
-          left: {field.rect.x}px;
-          top: {field.rect.y}px;
-          width: {field.rect.width}px;
-          height: {field.rect.height}px;
+          left: {field.rect.x * scaleX}%;
+          top: {field.rect.y * scaleY}%;
+          width: {field.rect.width * scaleX}%;
+          height: {field.rect.height * scaleY}%;
         "
       >
         {#if field.required}
@@ -127,10 +130,10 @@
         class="field-wrapper radio-wrapper"
         class:required={field.required}
         style="
-          left: {field.rect.x}px;
-          top: {field.rect.y}px;
-          width: {field.rect.width}px;
-          height: {field.rect.height}px;
+          left: {field.rect.x * scaleX}%;
+          top: {field.rect.y * scaleY}%;
+          width: {field.rect.width * scaleX}%;
+          height: {field.rect.height * scaleY}%;
         "
       >
         {#if field.required}
@@ -159,6 +162,8 @@
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
     z-index: 10;
   }
