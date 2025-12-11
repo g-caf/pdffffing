@@ -165,6 +165,15 @@
       deleteSelected();
     }
   }
+
+  async function handleOverlayClick(event) {
+    if (event.target.classList.contains('text-editor-overlay')) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      await createTextItem(x, y);
+    }
+  }
 </script>
 
 <svelte:window on:keydown={handleKeyDown} />
@@ -174,6 +183,7 @@
   style="width: {canvasWidth}px; height: {canvasHeight}px;"
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
+  on:click={handleOverlayClick}
   role="presentation"
 >
   {#each textItems as item (item.id)}
@@ -229,12 +239,9 @@
     position: absolute;
     top: 0;
     left: 0;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  .text-editor-overlay > * {
     pointer-events: auto;
+    z-index: 10;
+    cursor: crosshair;
   }
 
   .text-item {

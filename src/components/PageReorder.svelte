@@ -12,10 +12,16 @@
   let dropTargetIndex = null;
   let hasReordered = false;
   let isLoading = false;
-  let initialLoadDone = false;
+  let loadedPdfRef = null;
+  let isReorderingInternally = false;
 
-  $: if (pdfData && !initialLoadDone && !isLoading) {
+  $: if (pdfData && pdfData !== loadedPdfRef && !isLoading && !isReorderingInternally) {
     loadAllPages();
+  }
+
+  $: if (isReorderingInternally && pdfData) {
+    isReorderingInternally = false;
+    loadedPdfRef = pdfData;
   }
 
   async function loadAllPages() {
@@ -23,6 +29,8 @@
 
     try {
       isLoading = true;
+      loadedPdfRef = pdfData;
+      renderer = new PDFRenderer();
       pageCount = await renderer.loadPDF(pdfData);
       pages = [];
 
@@ -38,7 +46,6 @@
       }
       pages = pages;
       hasReordered = false;
-      initialLoadDone = true;
     } catch (error) {
       console.error('Error loading pages:', error);
       alert('Failed to load PDF pages. Please try again.');
@@ -83,6 +90,7 @@
     pages = newPages;
     draggedIndex = null;
     hasReordered = true;
+    isReorderingInternally = true;
 
     dispatch('reorder', {
       newOrder: pages.map(p => p.originalIndex)

@@ -4,101 +4,81 @@
   import TextEditor from './TextEditor.svelte';
 
   export let pdfData = null;
-  export let currentPage = 1;
 
   const dispatch = createEventDispatcher();
-  let canvas;
   let renderer = new PDFRenderer();
   let pageCount = 0;
+  let pages = [];
   let isTextMode = true;
-  let textToAdd = '';
-  let notification = '';
-  let showNotification = false;
   let fontFamily = 'Helvetica';
   let isBold = false;
   let isItalic = false;
   let textColor = '#000000';
-  let textEditor;
-  let canvasContainer;
+  let textEditors = {};
   let loadedPdfData = null;
+  let isLoading = false;
 
   export function finalizeText() {
-    if (textEditor) {
-      const items = textEditor.finalizeAll();
-      const formattedItems = items.map(item => ({
-        text: item.text,
-        x: item.x,
-        y: item.y,
-        pageIndex: currentPage - 1,
-        options: {
-          fontSize: item.fontSize,
-          fontFamily: item.fontFamily,
-          color: item.color
-        }
-      }));
-      textEditor.clearAll();
-      return formattedItems;
+    const allItems = [];
+    for (let i = 0; i < pageCount; i++) {
+      const editor = textEditors[i];
+      if (editor) {
+        const items = editor.finalizeAll();
+        const formattedItems = items.map(item => ({
+          text: item.text,
+          x: item.x,
+          y: item.y,
+          pageIndex: i,
+          options: {
+            fontSize: item.fontSize,
+            fontFamily: item.fontFamily,
+            color: item.color
+          }
+        }));
+        editor.clearAll();
+        allItems.push(...formattedItems);
+      }
     }
-    return [];
+    return allItems;
   }
 
-  $: if (pdfData && canvas && pdfData !== loadedPdfData) {
-    loadAndRenderPDF();
+  $: if (pdfData && pdfData !== loadedPdfData && !isLoading) {
+    loadAndRenderAllPages();
   }
 
-  $: if (canvas && pdfData && currentPage && loadedPdfData) {
-    renderCurrentPage();
-  }
-
-  async function loadAndRenderPDF() {
+  async function loadAndRenderAllPages() {
+    if (isLoading) return;
+    
     try {
+      isLoading = true;
       loadedPdfData = pdfData;
       renderer = new PDFRenderer();
       pageCount = await renderer.loadPDF(pdfData);
-      currentPage = 1;
-      await renderCurrentPage();
+      pages = [];
+      textEditors = {};
+
+      for (let i = 1; i <= pageCount; i++) {
+        const canvas = document.createElement('canvas');
+        await renderer.renderPage(i, canvas);
+        pages.push({
+          pageNum: i,
+          canvas: canvas,
+          dataUrl: canvas.toDataURL(),
+          width: canvas.width,
+          height: canvas.height
+        });
+      }
+      pages = pages;
     } catch (error) {
       console.error('Error loading PDF:', error);
-    }
-  }
-
-  async function renderCurrentPage() {
-    if (canvas && renderer.pdfDoc) {
-      await renderer.renderPage(currentPage, canvas);
-    }
-  }
-
-  function handleCanvasClick(event) {
-    if (isTextMode && textEditor) {
-      const rect = canvasContainer.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-
-      textEditor.createTextItem(x, y);
-    }
-  }
-
-  function nextPage() {
-    if (currentPage < pageCount) {
-      currentPage++;
-    }
-  }
-
-  function prevPage() {
-    if (currentPage > 1) {
-      currentPage--;
+    } finally {
+      isLoading = false;
     }
   }
 </script>
 
 <div class="viewer">
   {#if pdfData}
-    <div class="controls">
-      <button on:click={prevPage} disabled={currentPage <= 1}>Previous</button>
-      <span>Page {currentPage} of {pageCount}</span>
-      <button on:click={nextPage} disabled={currentPage >= pageCount}>Next</button>
-    </div>
-
     <div class="text-options">
       <div class="option-row">
         <div class="option-group">
@@ -136,25 +116,28 @@
       </div>
     </div>
 
-    <div class="canvas-container" bind:this={canvasContainer}>
-      <div class="canvas-wrapper">
-        <canvas
-          bind:this={canvas}
-          class:text-mode={isTextMode}
-          on:click={handleCanvasClick}
-        ></canvas>
-        {#if isTextMode && canvas}
-          <TextEditor
-            bind:this={textEditor}
-            canvasWidth={canvas.width}
-            canvasHeight={canvas.height}
-            {textColor}
-            {fontFamily}
-            {isBold}
-            {isItalic}
-          />
-        {/if}
-      </div>
+    <div class="pages-scroll-container">
+      {#each pages as page, index (page.pageNum)}
+        <div class="page-wrapper">
+          <div class="page-label">Page {page.pageNum}</div>
+          <div class="canvas-container">
+            <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
+              <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode} />
+              {#if isTextMode}
+                <TextEditor
+                  bind:this={textEditors[index]}
+                  canvasWidth={page.width}
+                  canvasHeight={page.height}
+                  {textColor}
+                  {fontFamily}
+                  {isBold}
+                  {isItalic}
+                />
+              {/if}
+            </div>
+          </div>
+        </div>
+      {/each}
     </div>
   {/if}
 </div>
@@ -166,57 +149,20 @@
     padding: 20px;
   }
 
-  .controls {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #000;
-    margin-bottom: 20px;
-  }
-
-  .text-controls {
-    display: flex;
-    gap: 8px;
-    margin-left: auto;
-  }
-
-  button {
-    padding: 8px 16px;
-    border: 2px solid #000;
-    background: #fff;
-    color: #000;
-    cursor: pointer;
-    font-size: 14px;
-  }
-
-  button:hover:not(:disabled) {
-    background: #000;
-    color: #fff;
-  }
-
-  button:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  button.active {
-    background: #000;
-    color: #fff;
-  }
-
   .text-options {
     padding: 16px;
     border: 2px solid #000;
     background: #f9f9f9;
     margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
   }
 
   .option-row {
     display: flex;
     gap: 16px;
     align-items: center;
-    margin-bottom: 12px;
     flex-wrap: wrap;
   }
 
@@ -264,15 +210,7 @@
     color: #fff;
   }
 
-  .text-input {
-    flex: 1;
-    padding: 8px;
-    border: 2px solid #000;
-    font-size: 14px;
-  }
-
   input[type="text"],
-  input[type="number"],
   select {
     padding: 6px 8px;
     border: 2px solid #000;
@@ -287,10 +225,6 @@
     appearance: auto;
   }
 
-  input[type="number"] {
-    width: 60px;
-  }
-
   input[type="color"] {
     width: 50px;
     height: 30px;
@@ -298,36 +232,49 @@
     cursor: pointer;
   }
 
+  .pages-scroll-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .page-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .page-label {
+    font-size: 14px;
+    color: #000;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
   .canvas-container {
     display: flex;
     justify-content: center;
-    overflow: auto;
-    max-height: calc(100vh - 350px);
+    overflow: visible;
   }
 
   .canvas-wrapper {
     position: relative;
     display: inline-block;
     max-width: 100%;
-    max-height: 100%;
   }
 
-  canvas {
+  .page-image {
     border: 1px solid #000;
     display: block;
     max-width: 100%;
-    max-height: calc(100vh - 350px);
     height: auto;
     width: auto;
-    object-fit: contain;
   }
 
-  canvas.text-mode {
+  .page-image.text-mode {
     cursor: crosshair;
-  }
-
-  span {
-    font-size: 14px;
-    color: #000;
   }
 </style>
