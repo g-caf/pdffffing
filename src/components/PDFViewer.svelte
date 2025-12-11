@@ -2,7 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
   import { detectFormFields, detectFormFieldsFromDocument, transformRect } from '../lib/formFieldDetector.js';
-  import { VisualFormDetector } from '../lib/visualFormDetector.js';
+  import { OCRFormDetector } from '../lib/ocrFormDetector.js';
   import TextEditor from './TextEditor.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
   import FormFieldEditor from './FormFieldEditor.svelte';
@@ -70,10 +70,12 @@
     if (!pdfData || pages.length === 0) return;
 
     try {
-      console.log('Starting visual form field detection...');
+      console.log('Starting OCR form field detection...');
       editingFields = [];
 
-      // Analyze each page for potential form fields
+      const ocrDetector = new OCRFormDetector();
+
+      // Analyze each page for potential form fields using OCR
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         const canvas = page.canvas;
@@ -83,21 +85,26 @@
         const pdfJsPage = await renderer.getPage(page.pageNum);
         const pageHeight = pdfJsPage.view[3];
 
-        // Detect form fields visually
-        const detected = VisualFormDetector.detectFormFields(canvas, pageHeight, renderer.scale);
-        const filtered = VisualFormDetector.filterFields(detected);
+        // Detect form fields using OCR
+        const detected = await ocrDetector.detectFormFields(canvas, pageHeight, renderer.scale);
+        const filtered = OCRFormDetector.filterFields(detected);
 
-        console.log(`Page ${page.pageNum}: detected ${filtered.length} potential form fields`);
+        console.log(`Page ${page.pageNum}: detected ${filtered.length} potential form fields via OCR`);
 
-        // Add page index to each field and unique ID
+        // Add page index to each field
         filtered.forEach((field, idx) => {
           field.pageIndex = i;
           field.pageNum = page.pageNum;
-          field.id = `detected-${i}-${idx}-${Date.now()}`;
+          if (!field.id) {
+            field.id = `detected-${i}-${idx}-${Date.now()}`;
+          }
         });
 
         editingFields.push(...filtered);
       }
+
+      // Clean up OCR worker
+      await ocrDetector.terminate();
 
       console.log(`Detected ${editingFields.length} total fields for editing`);
       isFieldEditMode = true;
