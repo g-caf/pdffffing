@@ -207,9 +207,7 @@
       {/if}
 
       <div class="actions-footer">
-        <button on:click={() => { currentPDF = null; showReorderView = false; }}>
-          Load More Files
-        </button>
+        <FileUploader compact={true} buttonText="Load More Files" on:filesloaded={handleFilesLoaded} />
       </div>
     {/if}
   </main>

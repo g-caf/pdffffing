@@ -1,6 +1,9 @@
 <script>
   import { createEventDispatcher } from 'svelte';
 
+  export let compact = false;
+  export let buttonText = 'Choose Files';
+
   const dispatch = createEventDispatcher();
   let isDragging = false;
 
@@ -50,27 +53,40 @@
   }
 </script>
 
-<div
-  class="uploader"
-  class:dragging={isDragging}
-  on:dragover={handleDragOver}
-  on:dragleave={handleDragLeave}
-  on:drop={handleDrop}
->
-  <div class="uploader-content">
-    <p>Drop PDF files here or</p>
-    <label for="file-input" class="file-label">
-      Choose Files
-    </label>
-    <input
-      id="file-input"
-      type="file"
-      accept="application/pdf"
-      multiple
-      on:change={handleFileInput}
-    />
+{#if compact}
+  <label for="file-input-compact" class="file-label-compact">
+    {buttonText}
+  </label>
+  <input
+    id="file-input-compact"
+    type="file"
+    accept="application/pdf"
+    multiple
+    on:change={handleFileInput}
+  />
+{:else}
+  <div
+    class="uploader"
+    class:dragging={isDragging}
+    on:dragover={handleDragOver}
+    on:dragleave={handleDragLeave}
+    on:drop={handleDrop}
+  >
+    <div class="uploader-content">
+      <p>Drop PDF files here or</p>
+      <label for="file-input" class="file-label">
+        {buttonText}
+      </label>
+      <input
+        id="file-input"
+        type="file"
+        accept="application/pdf"
+        multiple
+        on:change={handleFileInput}
+      />
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
   .uploader {
@@ -109,5 +125,20 @@
 
   input[type="file"] {
     display: none;
+  }
+
+  .file-label-compact {
+    display: inline-block;
+    padding: 8px 16px;
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .file-label-compact:hover {
+    background: #000;
+    color: #fff;
   }
 </style>
