@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
 
   export let pdfData = null;
@@ -13,12 +13,20 @@
   let dropTargetIndex = null;
   let isLoading = false;
 
-  let currentThumbVersion = -1;
+  let lastLoadedVersion = -1;
   let loadId = 0;
 
-  // Single reactive trigger based on thumbnailsVersion
-  $: if (pdfData && thumbnailsVersion !== currentThumbVersion) {
-    currentThumbVersion = thumbnailsVersion;
+  // Load on mount
+  onMount(() => {
+    if (pdfData) {
+      lastLoadedVersion = thumbnailsVersion;
+      loadAllPages();
+    }
+  });
+
+  // Reload only when thumbnailsVersion actually changes (new document loaded)
+  $: if (pdfData && thumbnailsVersion > 0 && thumbnailsVersion !== lastLoadedVersion && lastLoadedVersion !== -1) {
+    lastLoadedVersion = thumbnailsVersion;
     loadAllPages();
   }
 

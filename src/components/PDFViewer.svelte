@@ -1,5 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
   import TextEditor from './TextEditor.svelte';
 
@@ -19,7 +19,7 @@
   let textEditors = {};
   let isLoading = false;
 
-  let currentVersion = -1;
+  let lastLoadedVersion = -1;
   let loadId = 0;
 
   export function finalizeText() {
@@ -46,9 +46,17 @@
     return allItems;
   }
 
-  // Single reactive trigger based on version
-  $: if (pdfData && pdfVersion !== currentVersion) {
-    currentVersion = pdfVersion;
+  // Load on mount
+  onMount(() => {
+    if (pdfData) {
+      lastLoadedVersion = pdfVersion;
+      loadAndRenderAllPages();
+    }
+  });
+
+  // Reload when pdfVersion changes (edits, reorders, etc.)
+  $: if (pdfData && pdfVersion > 0 && pdfVersion !== lastLoadedVersion && lastLoadedVersion !== -1) {
+    lastLoadedVersion = pdfVersion;
     loadAndRenderAllPages();
   }
 
