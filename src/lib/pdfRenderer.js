@@ -20,6 +20,11 @@ export class PDFRenderer {
     return this.pageCount;
   }
 
+  async getPage(pageNum) {
+    if (!this.pdfDoc) return null;
+    return await this.pdfDoc.getPage(pageNum);
+  }
+
   async renderPage(pageNum, canvas) {
     if (!this.pdfDoc) return;
 

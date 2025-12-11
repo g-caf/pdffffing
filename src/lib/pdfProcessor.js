@@ -109,4 +109,92 @@ export class PDFProcessor {
   getPageCount() {
     return this.pdfDoc ? this.pdfDoc.getPageCount() : 0;
   }
+
+  async getFormFields() {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+    
+    try {
+      const form = this.pdfDoc.getForm();
+      const fields = form.getFields();
+      
+      return fields.map(field => {
+        const name = field.getName();
+        const type = field.constructor.name.replace('PDF', '').replace('Field', '');
+        let value = null;
+        
+        try {
+          if (type === 'Text') {
+            value = field.getText();
+          } else if (type === 'CheckBox') {
+            value = field.isChecked();
+          } else if (type === 'Dropdown') {
+            value = field.getSelected();
+          } else if (type === 'RadioGroup') {
+            value = field.getSelected();
+          } else if (type === 'OptionList') {
+            value = field.getSelected();
+          }
+        } catch (e) {
+          value = null;
+        }
+        
+        return { name, type, value };
+      });
+    } catch (error) {
+      console.error('Error getting form fields:', error);
+      return [];
+    }
+  }
+
+  async fillFormFields(fieldValues) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+    
+    const form = this.pdfDoc.getForm();
+    const results = { success: [], failed: [] };
+    
+    for (const [fieldName, value] of Object.entries(fieldValues)) {
+      try {
+        const field = form.getField(fieldName);
+        const type = field.constructor.name;
+        
+        if (type === 'PDFTextField') {
+          form.getTextField(fieldName).setText(String(value));
+        } else if (type === 'PDFCheckBox') {
+          if (value) {
+            form.getCheckBox(fieldName).check();
+          } else {
+            form.getCheckBox(fieldName).uncheck();
+          }
+        } else if (type === 'PDFDropdown') {
+          form.getDropdown(fieldName).select(String(value));
+        } else if (type === 'PDFRadioGroup') {
+          form.getRadioGroup(fieldName).select(String(value));
+        } else if (type === 'PDFOptionList') {
+          form.getOptionList(fieldName).select(String(value));
+        } else {
+          results.failed.push({ fieldName, error: `Unsupported field type: ${type}` });
+          continue;
+        }
+        
+        results.success.push(fieldName);
+      } catch (error) {
+        results.failed.push({ fieldName, error: error.message });
+      }
+    }
+    
+    return results;
+  }
+
+  async flattenForm() {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+    
+    try {
+      const form = this.pdfDoc.getForm();
+      form.flatten();
+      return true;
+    } catch (error) {
+      console.error('Error flattening form:', error);
+      return false;
+    }
+  }
 }

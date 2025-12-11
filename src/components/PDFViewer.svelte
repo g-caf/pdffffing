@@ -1,7 +1,9 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
+  import { detectFormFields, transformRect } from '../lib/formFieldDetector.js';
   import TextEditor from './TextEditor.svelte';
+  import FormFieldOverlay from './FormFieldOverlay.svelte';
 
   export let pdfData = null;
   export let pdfVersion = 0;
@@ -17,7 +19,9 @@
   let isItalic = false;
   let textColor = '#000000';
   let textEditors = {};
+  let formFieldOverlays = {};
   let isLoading = false;
+  let hasFormFields = false;
 
   let lastLoadedVersion = -1;
   let loadId = 0;
@@ -44,6 +48,18 @@
       }
     }
     return allItems;
+  }
+
+  export function getFormFieldValues() {
+    const allValues = {};
+    for (let i = 0; i < pageCount; i++) {
+      const overlay = formFieldOverlays[i];
+      if (overlay) {
+        const values = overlay.getFieldValues();
+        Object.assign(allValues, values);
+      }
+    }
+    return allValues;
   }
 
   // Load on mount
@@ -77,21 +93,41 @@
       pageCount = count;
       const newPages = [];
       textEditors = {};
+      formFieldOverlays = {};
+      let foundFormFields = false;
 
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
+        const pdfJsPage = await renderer.getPage(i);
         await renderer.renderPage(i, canvas);
         if (myId !== loadId) return; // aborted mid-way
+
+        // Detect form fields for this page
+        const rawFields = await detectFormFields(pdfJsPage);
+        const pageHeight = pdfJsPage.view[3]; // PDF page height in points
+        const scale = renderer.scale;
+        
+        const formFields = rawFields.map(field => ({
+          ...field,
+          rect: transformRect(field.rect, pageHeight, scale)
+        }));
+
+        if (formFields.length > 0) {
+          foundFormFields = true;
+        }
+
         newPages.push({
           pageNum: i,
           canvas,
           dataUrl: canvas.toDataURL(),
           width: canvas.width,
-          height: canvas.height
+          height: canvas.height,
+          formFields
         });
       }
 
       pages = newPages;
+      hasFormFields = foundFormFields;
     } catch (error) {
       console.error('Error loading PDF in viewer:', error);
     } finally {
@@ -141,17 +177,32 @@
       </div>
     </div>
 
+    {#if hasFormFields}
+      <div class="form-notice">
+        <span>📝 This PDF contains fillable form fields</span>
+      </div>
+    {/if}
+
     {#if isLoading}
       <div class="loading">Loading pages...</div>
     {:else}
       <div class="pages-scroll-container">
         {#each pages as page, index (page.pageNum)}
           <div class="page-wrapper">
-            <div class="page-label">Page {page.pageNum}</div>
+            <div class="page-label">Page {page.pageNum}{#if page.formFields?.length > 0} ({page.formFields.length} fields){/if}</div>
             <div class="canvas-container">
               <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
-                <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode} />
-                {#if isTextMode}
+                <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode && !page.formFields?.length} />
+                
+                {#if page.formFields?.length > 0}
+                  <FormFieldOverlay
+                    bind:this={formFieldOverlays[index]}
+                    fields={page.formFields}
+                    pageWidth={page.width}
+                    pageHeight={page.height}
+                    scale={1.5}
+                  />
+                {:else if isTextMode}
                   <TextEditor
                     bind:this={textEditors[index]}
                     canvasWidth={page.width}
@@ -183,6 +234,15 @@
     padding: 40px;
     font-size: 16px;
     color: #666;
+  }
+
+  .form-notice {
+    padding: 12px 16px;
+    background: #f0f7ff;
+    border: 2px solid #0066ff;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #000;
   }
 
   .text-options {

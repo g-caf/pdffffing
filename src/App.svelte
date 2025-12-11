@@ -118,6 +118,7 @@
   async function handleDownload() {
     try {
       if (pdfViewer && !showReorderView) {
+        // Finalize text additions
         const items = pdfViewer.finalizeText();
 
         if (items.length > 0) {
@@ -135,6 +136,19 @@
             );
           }
 
+          const updatedBytes = await processor.saveToBytes();
+          currentPDF = updatedBytes.buffer;
+          hasModifications = true;
+        }
+
+        // Fill form fields if any
+        const formValues = pdfViewer.getFormFieldValues();
+        if (Object.keys(formValues).length > 0) {
+          if (!processor.pdfDoc) {
+            await processor.loadPDF(currentPDF);
+          }
+
+          await processor.fillFormFields(formValues);
           const updatedBytes = await processor.saveToBytes();
           currentPDF = updatedBytes.buffer;
           hasModifications = true;
