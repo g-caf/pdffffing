@@ -35,7 +35,11 @@
     if (!pdfData) return;
 
     try {
-      isLoading = true;
+      // Only show loading if we don't have pages yet
+      if (pages.length === 0) {
+        isLoading = true;
+      }
+
       const localRenderer = new PDFRenderer();
       const count = await localRenderer.loadPDF(pdfData);
 
@@ -58,6 +62,7 @@
         });
       }
 
+      // Update pages atomically to prevent blink
       pages = newPages;
     } catch (error) {
       console.error('Error loading pages:', error);
@@ -119,7 +124,7 @@
 
 <div class="page-reorder">
   <h3>Drag to reorder</h3>
-  {#if isLoading}
+  {#if isLoading && pages.length === 0}
     <div class="loading">Loading pages...</div>
   {:else}
     <div class="pages-container">
