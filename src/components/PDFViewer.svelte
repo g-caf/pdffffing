@@ -1,11 +1,13 @@
 <script>
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
   import TextEditor from './TextEditor.svelte';
 
   export let pdfData = null;
+  export let pdfVersion = 0;
 
   const dispatch = createEventDispatcher();
+
   let renderer = new PDFRenderer();
   let pageCount = 0;
   let pages = [];
@@ -16,7 +18,9 @@
   let textColor = '#000000';
   let textEditors = {};
   let isLoading = false;
-  let hasLoaded = false;
+
+  let currentVersion = -1;
+  let loadId = 0;
 
   export function finalizeText() {
     const allItems = [];
@@ -42,44 +46,50 @@
     return allItems;
   }
 
-  onMount(() => {
-    if (pdfData && !hasLoaded) {
-      loadAndRenderAllPages();
-    }
-  });
-
-  $: if (pdfData && hasLoaded) {
-    // PDF data changed after initial load, reload
+  // Single reactive trigger based on version
+  $: if (pdfData && pdfVersion !== currentVersion) {
+    currentVersion = pdfVersion;
     loadAndRenderAllPages();
   }
 
   async function loadAndRenderAllPages() {
-    if (isLoading || !pdfData) return;
-    
+    const myId = ++loadId;
+    if (!pdfData) return;
+
     try {
       isLoading = true;
-      renderer = new PDFRenderer();
-      pageCount = await renderer.loadPDF(pdfData);
+
+      const localRenderer = new PDFRenderer();
+      const count = await localRenderer.loadPDF(pdfData);
+
+      // If a newer load started, abort this one
+      if (myId !== loadId) return;
+
+      renderer = localRenderer;
+      pageCount = count;
       const newPages = [];
       textEditors = {};
 
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
+        if (myId !== loadId) return; // aborted mid-way
         newPages.push({
           pageNum: i,
-          canvas: canvas,
+          canvas,
           dataUrl: canvas.toDataURL(),
           width: canvas.width,
           height: canvas.height
         });
       }
+
       pages = newPages;
-      hasLoaded = true;
     } catch (error) {
-      console.error('Error loading PDF:', error);
+      console.error('Error loading PDF in viewer:', error);
     } finally {
-      isLoading = false;
+      if (myId === loadId) {
+        isLoading = false;
+      }
     }
   }
 </script>
@@ -123,29 +133,33 @@
       </div>
     </div>
 
-    <div class="pages-scroll-container">
-      {#each pages as page, index (page.pageNum)}
-        <div class="page-wrapper">
-          <div class="page-label">Page {page.pageNum}</div>
-          <div class="canvas-container">
-            <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
-              <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode} />
-              {#if isTextMode}
-                <TextEditor
-                  bind:this={textEditors[index]}
-                  canvasWidth={page.width}
-                  canvasHeight={page.height}
-                  {textColor}
-                  {fontFamily}
-                  {isBold}
-                  {isItalic}
-                />
-              {/if}
+    {#if isLoading}
+      <div class="loading">Loading pages...</div>
+    {:else}
+      <div class="pages-scroll-container">
+        {#each pages as page, index (page.pageNum)}
+          <div class="page-wrapper">
+            <div class="page-label">Page {page.pageNum}</div>
+            <div class="canvas-container">
+              <div class="canvas-wrapper" style="width: {page.width}px; height: {page.height}px;">
+                <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode} />
+                {#if isTextMode}
+                  <TextEditor
+                    bind:this={textEditors[index]}
+                    canvasWidth={page.width}
+                    canvasHeight={page.height}
+                    {textColor}
+                    {fontFamily}
+                    {isBold}
+                    {isItalic}
+                  />
+                {/if}
+              </div>
             </div>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -154,6 +168,13 @@
     border: 2px solid #000;
     background: #fff;
     padding: 20px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 16px;
+    color: #666;
   }
 
   .text-options {

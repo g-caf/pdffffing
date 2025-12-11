@@ -1,8 +1,9 @@
 <script>
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
 
   export let pdfData = null;
+  export let thumbnailsVersion = 0;
 
   const dispatch = createEventDispatcher();
   let renderer = new PDFRenderer();
@@ -10,52 +11,53 @@
   let pageCount = 0;
   let draggedIndex = null;
   let dropTargetIndex = null;
-  let hasReordered = false;
   let isLoading = false;
-  let hasLoaded = false;
-  let skipReloadOnce = false;
 
-  onMount(() => {
-    if (pdfData && !hasLoaded) {
-      loadAllPages();
-    }
-  });
+  let currentThumbVersion = -1;
+  let loadId = 0;
 
-  $: if (pdfData && hasLoaded && !skipReloadOnce) {
+  // Single reactive trigger based on thumbnailsVersion
+  $: if (pdfData && thumbnailsVersion !== currentThumbVersion) {
+    currentThumbVersion = thumbnailsVersion;
     loadAllPages();
   }
 
-  $: if (skipReloadOnce && pdfData) {
-    skipReloadOnce = false;
-  }
-
   async function loadAllPages() {
-    if (isLoading || !pdfData) return;
+    const myId = ++loadId;
+    if (!pdfData) return;
 
     try {
       isLoading = true;
-      renderer = new PDFRenderer();
-      pageCount = await renderer.loadPDF(pdfData);
+      const localRenderer = new PDFRenderer();
+      const count = await localRenderer.loadPDF(pdfData);
+
+      if (myId !== loadId) return; // superseded by newer load
+
+      renderer = localRenderer;
+      pageCount = count;
       const newPages = [];
 
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
+        if (myId !== loadId) return; // superseded
+
         newPages.push({
           id: `page-${i}-${Date.now()}`,
           originalIndex: i - 1,
-          canvas: canvas,
+          canvas,
           thumbnail: canvas.toDataURL()
         });
       }
+
       pages = newPages;
-      hasReordered = false;
-      hasLoaded = true;
     } catch (error) {
       console.error('Error loading pages:', error);
       alert('Failed to load PDF pages. Please try again.');
     } finally {
-      isLoading = false;
+      if (myId === loadId) {
+        isLoading = false;
+      }
     }
   }
 
@@ -94,9 +96,8 @@
 
     pages = newPages;
     draggedIndex = null;
-    hasReordered = true;
-    skipReloadOnce = true;
 
+    // Dispatch reorder - thumbnails stay as-is since thumbnailsVersion won't change
     dispatch('reorder', {
       newOrder: pages.map(p => p.originalIndex)
     });
@@ -110,26 +111,30 @@
 
 <div class="page-reorder">
   <h3>Drag to reorder</h3>
-  <div class="pages-container">
-    {#each pages as page, index (page.id)}
-      <div
-        class="page-item"
-        class:dragging={draggedIndex === index}
-        class:drop-target={dropTargetIndex === index}
-        draggable="true"
-        on:dragstart={(e) => handleDragStart(e, index)}
-        on:dragover={(e) => handleDragOver(e, index)}
-        on:dragleave={(e) => handleDragLeave(e, index)}
-        on:drop={(e) => handleDrop(e, index)}
-        on:dragend={handleDragEnd}
-        role="button"
-        tabindex="0"
-      >
-        <span class="page-number">{index + 1}</span>
-        <img src={page.thumbnail} alt="Page {index + 1}" />
-      </div>
-    {/each}
-  </div>
+  {#if isLoading}
+    <div class="loading">Loading pages...</div>
+  {:else}
+    <div class="pages-container">
+      {#each pages as page, index (page.id)}
+        <div
+          class="page-item"
+          class:dragging={draggedIndex === index}
+          class:drop-target={dropTargetIndex === index}
+          draggable="true"
+          on:dragstart={(e) => handleDragStart(e, index)}
+          on:dragover={(e) => handleDragOver(e, index)}
+          on:dragleave={(e) => handleDragLeave(e, index)}
+          on:drop={(e) => handleDrop(e, index)}
+          on:dragend={handleDragEnd}
+          role="button"
+          tabindex="0"
+        >
+          <span class="page-number">{index + 1}</span>
+          <img src={page.thumbnail} alt="Page {index + 1}" />
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -142,6 +147,13 @@
     font-size: 16px;
     color: #000;
     font-weight: normal;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 16px;
+    color: #666;
   }
 
   .pages-container {

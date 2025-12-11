@@ -12,19 +12,28 @@
   let showReorderView = false;
   let pdfViewer;
 
+  // Version counters for explicit change tracking
+  let pdfVersion = 0;        // increments on ANY pdf change (edit/reorder/merge)
+  let thumbnailsVersion = 0; // increments only on NEW document (load/merge)
+
+  function updateCurrentPDF(buffer, { isNewDocument = false } = {}) {
+    currentPDF = buffer;
+    pdfVersion += 1;
+    if (isNewDocument) {
+      thumbnailsVersion += 1;
+    }
+  }
+
   async function handleFilesLoaded(event) {
     const { files } = event.detail;
     loadedFiles = [...loadedFiles, ...files];
 
-    // Always load/merge files immediately for viewing
     try {
       if (loadedFiles.length === 1) {
-        // Single file - load directly
-        currentPDF = loadedFiles[0].arrayBuffer;
+        updateCurrentPDF(loadedFiles[0].arrayBuffer, { isNewDocument: true });
         await processor.loadPDF(currentPDF);
-        showReorderView = false; // Show edit view for single file
+        showReorderView = false;
       } else {
-        // Multiple files - merge automatically
         await handleMergePDFs();
       }
     } catch (error) {
@@ -40,18 +49,16 @@
       const arrayBuffers = loadedFiles.map(f => f.arrayBuffer);
 
       if (loadedFiles.length === 1) {
-        // Single file case
-        currentPDF = arrayBuffers[0];
+        updateCurrentPDF(arrayBuffers[0], { isNewDocument: true });
         await processor.loadPDF(currentPDF);
       } else {
-        // Multiple files - merge them
         await processor.mergePDFs(arrayBuffers);
         const mergedBytes = await processor.saveToBytes();
-        currentPDF = mergedBytes.buffer;
+        updateCurrentPDF(mergedBytes.buffer, { isNewDocument: true });
         hasModifications = true;
       }
 
-      showReorderView = true; // Show reorder view after merge
+      showReorderView = true;
     } catch (error) {
       console.error('Error merging PDFs:', error);
       alert('Failed to merge PDFs. Please try again.');
@@ -67,9 +74,10 @@
       }
 
       await processor.reorderPages(newOrder);
-
       const reorderedBytes = await processor.saveToBytes();
-      currentPDF = reorderedBytes.buffer;
+      
+      // NOT a new document - thumbnails already reflect the reorder
+      updateCurrentPDF(reorderedBytes.buffer, { isNewDocument: false });
       hasModifications = true;
 
       processor = new PDFProcessor();
@@ -93,12 +101,12 @@
       }
 
       await processor.addText(pageIndex, text, x, y, options);
-
       const updatedBytes = await processor.saveToBytes();
-      currentPDF = updatedBytes.buffer;
+      
+      // NOT a new document
+      updateCurrentPDF(updatedBytes.buffer, { isNewDocument: false });
       hasModifications = true;
 
-      // Force re-render by creating a new processor
       processor = new PDFProcessor();
       await processor.loadPDF(currentPDF);
     } catch (error) {
@@ -109,11 +117,9 @@
 
   async function handleDownload() {
     try {
-      // Finalize any pending text additions
       if (pdfViewer && !showReorderView) {
         const items = pdfViewer.finalizeText();
 
-        // Add all text items directly to the PDF
         if (items.length > 0) {
           if (!processor.pdfDoc) {
             await processor.loadPDF(currentPDF);
@@ -129,7 +135,6 @@
             );
           }
 
-          // Save the updated PDF
           const updatedBytes = await processor.saveToBytes();
           currentPDF = updatedBytes.buffer;
           hasModifications = true;
@@ -139,13 +144,11 @@
       let bytesToDownload;
 
       if (hasModifications || loadedFiles.length > 1) {
-        // Use the modified version
         if (!processor.pdfDoc) {
           await processor.loadPDF(currentPDF);
         }
         bytesToDownload = await processor.saveToBytes();
       } else {
-        // Use original file
         bytesToDownload = new Uint8Array(currentPDF);
       }
 
@@ -168,6 +171,8 @@
     processor = new PDFProcessor();
     hasModifications = false;
     showReorderView = false;
+    pdfVersion = 0;
+    thumbnailsVersion = 0;
   }
 </script>
 
@@ -195,12 +200,14 @@
       {#if showReorderView}
         <PageReorder
           pdfData={currentPDF}
+          {thumbnailsVersion}
           on:reorder={handleReorder}
         />
       {:else}
         <PDFViewer
           bind:this={pdfViewer}
           pdfData={currentPDF}
+          {pdfVersion}
           on:addtext={handleAddText}
         />
       {/if}
