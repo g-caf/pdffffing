@@ -23,39 +23,58 @@ function mapFieldType(annotation) {
 }
 
 export async function detectFormFields(pdfJsPage) {
+  console.log('=== detectFormFields called ===');
+  console.log('Page object:', pdfJsPage);
+  console.log('Page number:', pdfJsPage.pageNumber);
+
   // Try multiple methods to find form fields
-  
+
   // Method 1: getAnnotations with different intents
   let annotations = await pdfJsPage.getAnnotations({ intent: 'display' });
   console.log('Annotations (display intent):', annotations.length);
-  
+
   if (annotations.length === 0) {
     annotations = await pdfJsPage.getAnnotations({ intent: 'print' });
     console.log('Annotations (print intent):', annotations.length);
   }
-  
+
   if (annotations.length === 0) {
     annotations = await pdfJsPage.getAnnotations();
     console.log('Annotations (no intent):', annotations.length);
   }
-  
-  // Log all annotation details for debugging
+
+  // Log ALL annotation data for debugging
   if (annotations.length > 0) {
-    console.log('Annotation details:', annotations.map(a => ({
-      subtype: a.subtype,
-      fieldType: a.fieldType,
-      fieldName: a.fieldName,
-      annotationType: a.annotationType,
-      id: a.id
-    })));
+    console.log('Total annotations found:', annotations.length);
+    annotations.forEach((a, idx) => {
+      console.log(`Annotation ${idx}:`, {
+        subtype: a.subtype,
+        fieldType: a.fieldType,
+        fieldName: a.fieldName,
+        annotationType: a.annotationType,
+        id: a.id,
+        rect: a.rect,
+        hasFieldType: !!a.fieldType,
+        isWidget: a.subtype === 'Widget',
+        allKeys: Object.keys(a)
+      });
+    });
+  } else {
+    console.log('NO annotations found on this page');
   }
-  
+
   const formFields = annotations
     .filter(annotation => {
       const isWidget = annotation.subtype === 'Widget';
       const hasFieldType = !!annotation.fieldType;
       const isFormAnnotation = annotation.annotationType === 20;
-      return isWidget || hasFieldType || isFormAnnotation;
+      const matches = isWidget || hasFieldType || isFormAnnotation;
+
+      if (!matches && annotation.subtype) {
+        console.log(`Filtered out annotation with subtype: ${annotation.subtype}`);
+      }
+
+      return matches;
     })
     .map((annotation, index) => {
       const field = {
@@ -68,26 +87,44 @@ export async function detectFormFields(pdfJsPage) {
         required: annotation.required || false,
         readOnly: annotation.readOnly || false
       };
+      console.log('Mapped form field:', field);
       return field;
     });
-  
-  console.log('Form fields detected:', formFields.length);
-  
+
+  console.log('Form fields detected (final):', formFields.length);
+  console.log('=== detectFormFields complete ===');
+
   return formFields;
 }
 
 // Alternative: detect form fields at document level
 export async function detectFormFieldsFromDocument(pdfJsDoc) {
+  console.log('=== detectFormFieldsFromDocument called ===');
+  console.log('pdfJsDoc object:', pdfJsDoc);
+  console.log('pdfJsDoc has getFieldObjects?', typeof pdfJsDoc?.getFieldObjects);
+
   try {
     // Check if document has AcroForm
     const acroForm = await pdfJsDoc.getFieldObjects();
-    console.log('AcroForm field objects:', acroForm);
-    
+    console.log('AcroForm field objects result:', acroForm);
+    console.log('AcroForm type:', typeof acroForm);
+    console.log('AcroForm keys:', acroForm ? Object.keys(acroForm) : 'null');
+
     if (acroForm && Object.keys(acroForm).length > 0) {
+      console.log(`Found ${Object.keys(acroForm).length} form fields in document`);
       const fields = [];
       for (const [name, fieldArray] of Object.entries(acroForm)) {
+        console.log(`Processing field "${name}":`, fieldArray);
         for (const field of fieldArray) {
-          console.log('Field from AcroForm:', name, field);
+          console.log('Field details:', {
+            name,
+            type: field.type,
+            page: field.page,
+            rect: field.rect,
+            value: field.value,
+            allKeys: Object.keys(field)
+          });
+
           fields.push({
             id: field.id || `field-${name}-${Date.now()}`,
             name: name,
@@ -101,12 +138,17 @@ export async function detectFormFieldsFromDocument(pdfJsDoc) {
           });
         }
       }
+      console.log(`Returning ${fields.length} fields from document-level detection`);
       return fields;
+    } else {
+      console.log('No AcroForm fields found in document');
     }
   } catch (e) {
-    console.log('getFieldObjects not available or failed:', e);
+    console.error('getFieldObjects error:', e);
+    console.error('Error stack:', e.stack);
   }
-  
+
+  console.log('=== detectFormFieldsFromDocument returning empty array ===');
   return [];
 }
 

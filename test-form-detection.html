@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Form Field Detection Test</title>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+</head>
+<body>
+  <h1>PDF Form Field Detection Test</h1>
+  <input type="file" id="fileInput" accept="application/pdf">
+  <div id="output" style="margin-top: 20px; font-family: monospace; white-space: pre-wrap;"></div>
+
+  <script>
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+    const output = document.getElementById('output');
+
+    function log(msg) {
+      output.textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      output.textContent = '';
+      log('=== Starting PDF Analysis ===\n');
+
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdfDoc = await loadingTask.promise;
+
+      log(`PDF loaded: ${pdfDoc.numPages} pages`);
+      log(`PDF.js version: ${pdfjsLib.version}`);
+      log('');
+
+      // Check document-level API
+      log('=== Document-Level Detection ===');
+      log('Available methods on pdfDoc:');
+      log(Object.getOwnPropertyNames(Object.getPrototypeOf(pdfDoc)).join(', '));
+      log('');
+
+      // Try getFieldObjects
+      try {
+        log('Attempting pdfDoc.getFieldObjects()...');
+        if (typeof pdfDoc.getFieldObjects === 'function') {
+          const fieldObjects = await pdfDoc.getFieldObjects();
+          log('getFieldObjects result: ' + JSON.stringify(fieldObjects, null, 2));
+        } else {
+          log('ERROR: getFieldObjects is not a function!');
+          log('Type: ' + typeof pdfDoc.getFieldObjects);
+        }
+      } catch (e) {
+        log('getFieldObjects ERROR: ' + e.message);
+        log('Stack: ' + e.stack);
+      }
+      log('');
+
+      // Check page-level API for first page
+      log('=== Page-Level Detection (Page 1) ===');
+      const page = await pdfDoc.getPage(1);
+
+      log('Available methods on page:');
+      log(Object.getOwnPropertyNames(Object.getPrototypeOf(page)).join(', '));
+      log('');
+
+      // Try getAnnotations
+      try {
+        log('Attempting page.getAnnotations()...');
+        const annotations = await page.getAnnotations();
+        log(`Found ${annotations.length} annotations`);
+
+        if (annotations.length > 0) {
+          annotations.forEach((ann, idx) => {
+            log(`\nAnnotation ${idx}:`);
+            log(JSON.stringify(ann, null, 2));
+          });
+        }
+      } catch (e) {
+        log('getAnnotations ERROR: ' + e.message);
+      }
+      log('');
+
+      log('=== Analysis Complete ===');
+    });
+  </script>
+</body>
+</html>
