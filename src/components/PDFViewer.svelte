@@ -97,15 +97,12 @@
       const totalFields = allDetectedFields.reduce((sum, p) => sum + p.fields.length, 0);
 
       if (totalFields === 0) {
-        alert('No form fields detected. This PDF may not have visual form elements, or they may be too complex to detect automatically.');
+        alert('No form fields detected. This PDF may not have visual form elements like horizontal lines for text inputs.');
         return;
       }
 
-      const confirmed = confirm(`Detected ${totalFields} potential form fields. Add them to the PDF?`);
-
-      if (confirmed) {
-        dispatch('createformfields', { detectedFields: allDetectedFields });
-      }
+      console.log(`Auto-creating ${totalFields} form fields...`);
+      dispatch('createformfields', { detectedFields: allDetectedFields });
     } catch (error) {
       console.error('Error detecting form fields:', error);
       alert('Failed to detect form fields. Please try again.');
