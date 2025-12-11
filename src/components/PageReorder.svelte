@@ -12,9 +12,16 @@
   let hasReordered = false;
   let isLoading = false;
   let loadedPdfData = null;
+  let skipNextReload = false;
 
-  $: if (pdfData && pdfData !== loadedPdfData && !isLoading) {
+  $: if (pdfData && pdfData !== loadedPdfData && !isLoading && !skipNextReload) {
     loadAllPages();
+  }
+
+  $: if (skipNextReload && pdfData) {
+    // Reset the flag and update loaded reference without reloading
+    skipNextReload = false;
+    loadedPdfData = pdfData;
   }
 
   async function loadAllPages() {
@@ -68,6 +75,9 @@
     pages = newPages;
     draggedIndex = null;
     hasReordered = true;
+
+    // Skip reload when PDF updates from this reorder
+    skipNextReload = true;
 
     // Notify parent of new order
     dispatch('reorder', {
