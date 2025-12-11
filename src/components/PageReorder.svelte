@@ -91,7 +91,7 @@
 </script>
 
 <div class="page-reorder">
-  <h3>Rearrange Pages (Drag to reorder)</h3>
+  <h3>Drag to reorder</h3>
   <div class="pages-container">
     {#each pages as page, index (page.id)}
       <div
