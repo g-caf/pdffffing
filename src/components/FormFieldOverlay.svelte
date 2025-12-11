@@ -9,7 +9,12 @@
   $: {
     fields.forEach(field => {
       if (!(field.id in fieldValues)) {
-        fieldValues[field.id] = field.type === 'checkbox' ? !!field.value : (field.value || '');
+        if (field.type === 'checkbox') {
+          // Only check if value is explicitly true or 'true'
+          fieldValues[field.id] = field.value === true || field.value === 'true';
+        } else {
+          fieldValues[field.id] = field.value || '';
+        }
       }
     });
   }
