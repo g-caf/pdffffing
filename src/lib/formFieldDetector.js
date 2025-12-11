@@ -23,28 +23,41 @@ function mapFieldType(annotation) {
 }
 
 export async function detectFormFields(pdfJsPage) {
-  const annotations = await pdfJsPage.getAnnotations({ intent: 'display' });
+  // Try multiple methods to find form fields
   
-  console.log('All annotations found:', annotations.length);
-  console.log('Annotations:', annotations.map(a => ({ 
-    subtype: a.subtype, 
-    fieldType: a.fieldType, 
-    fieldName: a.fieldName,
-    annotationType: a.annotationType
-  })));
+  // Method 1: getAnnotations with different intents
+  let annotations = await pdfJsPage.getAnnotations({ intent: 'display' });
+  console.log('Annotations (display intent):', annotations.length);
+  
+  if (annotations.length === 0) {
+    annotations = await pdfJsPage.getAnnotations({ intent: 'print' });
+    console.log('Annotations (print intent):', annotations.length);
+  }
+  
+  if (annotations.length === 0) {
+    annotations = await pdfJsPage.getAnnotations();
+    console.log('Annotations (no intent):', annotations.length);
+  }
+  
+  // Log all annotation details for debugging
+  if (annotations.length > 0) {
+    console.log('Annotation details:', annotations.map(a => ({
+      subtype: a.subtype,
+      fieldType: a.fieldType,
+      fieldName: a.fieldName,
+      annotationType: a.annotationType,
+      id: a.id
+    })));
+  }
   
   const formFields = annotations
     .filter(annotation => {
-      // Widget is the annotation type for form fields
-      // Also check for specific field types
       const isWidget = annotation.subtype === 'Widget';
       const hasFieldType = !!annotation.fieldType;
-      const isFormAnnotation = annotation.annotationType === 20; // AnnotationType.WIDGET
+      const isFormAnnotation = annotation.annotationType === 20;
       return isWidget || hasFieldType || isFormAnnotation;
     })
     .map((annotation, index) => {
-      console.log('Processing field:', annotation);
-      
       const field = {
         id: annotation.id || `field-${index}-${Date.now()}`,
         name: annotation.fieldName || annotation.alternativeText || '',
@@ -55,11 +68,53 @@ export async function detectFormFields(pdfJsPage) {
         required: annotation.required || false,
         readOnly: annotation.readOnly || false
       };
-      
       return field;
     });
   
-  console.log('Form fields detected:', formFields.length, formFields);
+  console.log('Form fields detected:', formFields.length);
   
   return formFields;
+}
+
+// Alternative: detect form fields at document level
+export async function detectFormFieldsFromDocument(pdfJsDoc) {
+  try {
+    // Check if document has AcroForm
+    const acroForm = await pdfJsDoc.getFieldObjects();
+    console.log('AcroForm field objects:', acroForm);
+    
+    if (acroForm && Object.keys(acroForm).length > 0) {
+      const fields = [];
+      for (const [name, fieldArray] of Object.entries(acroForm)) {
+        for (const field of fieldArray) {
+          console.log('Field from AcroForm:', name, field);
+          fields.push({
+            id: field.id || `field-${name}-${Date.now()}`,
+            name: name,
+            type: mapAcroFieldType(field.type),
+            rect: field.rect || [0, 0, 100, 20],
+            value: field.value || '',
+            options: field.options || [],
+            required: field.required || false,
+            readOnly: field.readOnly || false,
+            pageIndex: field.page
+          });
+        }
+      }
+      return fields;
+    }
+  } catch (e) {
+    console.log('getFieldObjects not available or failed:', e);
+  }
+  
+  return [];
+}
+
+function mapAcroFieldType(type) {
+  if (type === 'text') return 'text';
+  if (type === 'checkbox') return 'checkbox';
+  if (type === 'radiobutton') return 'radio';
+  if (type === 'combobox' || type === 'listbox') return 'dropdown';
+  if (type === 'signature') return 'signature';
+  return 'text';
 }

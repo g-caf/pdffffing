@@ -1,7 +1,7 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte';
   import { PDFRenderer } from '../lib/pdfRenderer.js';
-  import { detectFormFields, transformRect } from '../lib/formFieldDetector.js';
+  import { detectFormFields, detectFormFieldsFromDocument, transformRect } from '../lib/formFieldDetector.js';
   import TextEditor from './TextEditor.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
 
@@ -96,16 +96,32 @@
       formFieldOverlays = {};
       let foundFormFields = false;
 
+      // Try document-level form detection first
+      let docLevelFields = [];
+      try {
+        docLevelFields = await detectFormFieldsFromDocument(renderer.pdfDoc);
+        console.log('Document-level fields found:', docLevelFields.length);
+      } catch (e) {
+        console.log('Document-level detection failed:', e);
+      }
+
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         const pdfJsPage = await renderer.getPage(i);
         await renderer.renderPage(i, canvas);
         if (myId !== loadId) return; // aborted mid-way
 
-        // Detect form fields for this page
-        const rawFields = await detectFormFields(pdfJsPage);
         const pageHeight = pdfJsPage.view[3]; // PDF page height in points
         const scale = renderer.scale;
+
+        // Try page-level detection
+        let rawFields = await detectFormFields(pdfJsPage);
+        
+        // If no page-level fields, use document-level fields for this page
+        if (rawFields.length === 0 && docLevelFields.length > 0) {
+          rawFields = docLevelFields.filter(f => f.pageIndex === i - 1);
+          console.log(`Using ${rawFields.length} doc-level fields for page ${i}`);
+        }
         
         const formFields = rawFields.map(field => ({
           ...field,
