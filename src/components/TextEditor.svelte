@@ -7,6 +7,7 @@
   export let fontFamily = 'Helvetica';
   export let isBold = false;
   export let isItalic = false;
+  export let isCheckmarkMode = false;
 
   const dispatch = createEventDispatcher();
 
@@ -184,8 +185,30 @@
       const canvasX = (x / rect.width) * canvasWidth;
       const canvasY = (y / rect.height) * canvasHeight;
 
-      await createTextItem(canvasX, canvasY);
+      if (isCheckmarkMode) {
+        await createCheckmark(canvasX, canvasY);
+      } else {
+        await createTextItem(canvasX, canvasY);
+      }
     }
+  }
+
+  async function createCheckmark(x, y) {
+    const checkmarkItem = {
+      id: Date.now(),
+      text: '✓',
+      x,
+      y,
+      fontSize: 24,
+      color: textColor,
+      fontFamily: 'Arial',
+      isBold: true,
+      isItalic: false,
+      width: 30,
+      height: 30,
+      isEditing: false
+    };
+    textItems = [...textItems, checkmarkItem];
   }
 </script>
 

@@ -16,6 +16,7 @@
   let pageCount = 0;
   let pages = [];
   let isTextMode = true;
+  let isCheckmarkMode = false;
   let fontFamily = 'Helvetica';
   let isBold = false;
   let isItalic = false;
@@ -292,6 +293,15 @@
           >
             I
           </button>
+          <button
+            class="style-btn checkmark-btn"
+            class:active={isCheckmarkMode}
+            on:click={() => isCheckmarkMode = !isCheckmarkMode}
+            type="button"
+            title="Insert checkmark"
+          >
+            ✓
+          </button>
         </div>
 
         {#if !hasFormFields && !isFieldEditMode}
@@ -352,6 +362,7 @@
                     {fontFamily}
                     {isBold}
                     {isItalic}
+                    {isCheckmarkMode}
                   />
                 {/if}
               </div>
