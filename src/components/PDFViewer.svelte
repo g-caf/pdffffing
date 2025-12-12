@@ -6,6 +6,7 @@
   import TextEditor from './TextEditor.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
   import FormFieldEditor from './FormFieldEditor.svelte';
+  import SignaturePad from './SignaturePad.svelte';
 
   export let pdfData = null;
   export let pdfVersion = 0;
@@ -27,6 +28,8 @@
   let hasFormFields = false;
   let isFieldEditMode = false;
   let editingFields = [];
+  let showSignaturePad = false;
+  let pendingSignature = null;
 
   let lastLoadedVersion = -1;
   let loadId = 0;
@@ -166,6 +169,12 @@
     editingFields = [];
   }
 
+  function handleSignatureSave(event) {
+    const { signatureData } = event.detail;
+    pendingSignature = signatureData;
+    // User will click on PDF to place the signature
+  }
+
   // Load on mount
   onMount(() => {
     if (pdfData) {
@@ -302,6 +311,14 @@
           >
             ✓
           </button>
+          <button
+            class="style-btn signature-btn"
+            on:click={() => showSignaturePad = true}
+            type="button"
+            title="Add signature"
+          >
+            S
+          </button>
         </div>
 
         {#if !isFieldEditMode}
@@ -363,6 +380,7 @@
                     {isBold}
                     {isItalic}
                     {isCheckmarkMode}
+                    bind:pendingSignature
                   />
                 {/if}
               </div>
@@ -372,6 +390,12 @@
       </div>
     {/if}
   {/if}
+
+  <SignaturePad
+    show={showSignaturePad}
+    on:save={handleSignatureSave}
+    on:close={() => showSignaturePad = false}
+  />
 </div>
 
 <style>

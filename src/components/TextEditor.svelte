@@ -8,6 +8,7 @@
   export let isBold = false;
   export let isItalic = false;
   export let isCheckmarkMode = false;
+  export let pendingSignature = null;
 
   const dispatch = createEventDispatcher();
 
@@ -124,8 +125,8 @@
   }
 
   function handleDoubleClick(item) {
-    // Don't allow editing of checkmarks
-    if (!item.isCheckmark) {
+    // Don't allow editing of checkmarks or signatures
+    if (!item.isCheckmark && !item.isSignature) {
       startEditing(item);
     }
   }
@@ -188,12 +189,35 @@
       const canvasX = (x / rect.width) * canvasWidth;
       const canvasY = (y / rect.height) * canvasHeight;
 
-      if (isCheckmarkMode) {
+      if (pendingSignature) {
+        await createSignature(canvasX, canvasY);
+      } else if (isCheckmarkMode) {
         await createCheckmark(canvasX, canvasY);
       } else {
         await createTextItem(canvasX, canvasY);
       }
     }
+  }
+
+  async function createSignature(x, y) {
+    const signatureItem = {
+      id: Date.now(),
+      text: '',  // Signatures use images, not text
+      x: x - 50,  // Center the signature
+      y: y - 25,
+      fontSize: 16,
+      color: '#000000',
+      fontFamily: 'Arial',
+      isBold: false,
+      isItalic: false,
+      width: 200,
+      height: 60,
+      isEditing: false,
+      isSignature: true,
+      signatureData: pendingSignature
+    };
+    textItems = [...textItems, signatureItem];
+    pendingSignature = null;  // Clear pending signature
   }
 
   async function createCheckmark(x, y) {
@@ -247,7 +271,9 @@
       role="button"
       tabindex="0"
     >
-      {#if item.isEditing}
+      {#if item.isSignature}
+        <img src={item.signatureData} alt="Signature" class="signature-image" />
+      {:else if item.isEditing}
         <input
           bind:this={inputElement}
           type="text"
@@ -267,7 +293,7 @@
         <span class="text-content">{item.text || (item.isCheckmark ? '✓' : 'Double-click to edit')}</span>
       {/if}
       {#if selectedItem === item && !item.isEditing}
-        {#if !item.isCheckmark}
+        {#if !item.isCheckmark && !item.isSignature}
           <div class="resize-handle"></div>
         {/if}
         <button class="delete-btn" on:click={deleteSelected}>×</button>
@@ -315,6 +341,13 @@
     align-items: center;
     justify-content: center;
     line-height: 1;
+  }
+
+  .signature-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
   }
 
   .text-content {
