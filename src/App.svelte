@@ -68,6 +68,8 @@
   async function handleReorder(event) {
     const { newOrder } = event.detail;
 
+    console.log('handleReorder called with order:', newOrder);
+
     try {
       if (!processor.pdfDoc) {
         await processor.loadPDF(currentPDF);
@@ -75,13 +77,17 @@
 
       await processor.reorderPages(newOrder);
       const reorderedBytes = await processor.saveToBytes();
-      
-      // NOT a new document - thumbnails already reflect the reorder
-      updateCurrentPDF(reorderedBytes.buffer, { isNewDocument: false });
+
+      console.log('Reordered PDF bytes length:', reorderedBytes.byteLength);
+
+      // Reload thumbnails to reflect the new order
+      updateCurrentPDF(reorderedBytes.buffer, { isNewDocument: true });
       hasModifications = true;
 
       processor = new PDFProcessor();
       await processor.loadPDF(currentPDF);
+
+      console.log('After reorder - pdfVersion:', pdfVersion, 'thumbnailsVersion:', thumbnailsVersion);
     } catch (error) {
       console.error('Error reordering pages:', error);
       alert('Failed to reorder pages. Please try again.');
