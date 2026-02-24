@@ -321,18 +321,6 @@
           </button>
         </div>
 
-        {#if !isFieldEditMode}
-          <div class="option-group">
-            <button
-              class="style-btn create-fields-btn"
-              on:click={enterFieldEditMode}
-              type="button"
-              title="Edit form fields"
-            >
-              +F
-            </button>
-          </div>
-        {/if}
       </div>
     </div>
 

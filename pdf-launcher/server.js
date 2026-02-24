@@ -8,8 +8,17 @@ const url = require('url');
 const PORT = 7654;
 
 const server = http.createServer((req, res) => {
-  // Enable CORS for the Render domain
-  res.setHeader('Access-Control-Allow-Origin', 'https://pdffffing.onrender.com');
+  // Enable CORS for allowed origins (prod + local dev)
+  const allowedOrigins = new Set([
+    'https://pdffffing.onrender.com',
+    'http://localhost:5173',
+  ]);
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://pdffffing.onrender.com');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range');
   

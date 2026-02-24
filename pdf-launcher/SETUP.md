@@ -29,9 +29,75 @@ mkdir -p ~/.pdf-launcher
 cp server.js ~/.pdf-launcher/
 chmod +x ~/.pdf-launcher/server.js
 
-# Copy launcher app
-cp pdf-launcher ~/.pdf-launcher/
-chmod +x ~/.pdf-launcher/pdf-launcher
+# Create app bundle
+mkdir -p ~/.pdf-launcher/PDF\ Launcher.app/Contents/MacOS
+cp pdf-launcher ~/.pdf-launcher/PDF\ Launcher.app/Contents/MacOS/pdf-launcher
+chmod +x ~/.pdf-launcher/PDF\ Launcher.app/Contents/MacOS/pdf-launcher
+
+# Create Info.plist
+cat > ~/.pdf-launcher/PDF\ Launcher.app/Contents/Info.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>pdf-launcher</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.pdffffing.pdf-launcher</string>
+  <key>CFBundleSignature</key>
+  <string>PDFL</string>
+  <key>CFBundleName</key>
+  <string>PDF Launcher</string>
+  <key>CFBundleDisplayName</key>
+  <string>PDF Launcher</string>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>CFBundleShortVersionString</key>
+  <string>1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>11.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>PDF</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>CFBundleTypeMIMETypes</key>
+      <array>
+        <string>application/pdf</string>
+      </array>
+      <key>CFBundleTypeOSTypes</key>
+      <array>
+        <string>PDF </string>
+      </array>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.adobe.pdf</string>
+        <string>public.pdf</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>pdf</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>
+EOF
+
+# Create PkgInfo for older LaunchServices compatibility
+echo -n "APPLPDFL" > ~/.pdf-launcher/PDF\ Launcher.app/Contents/PkgInfo
 ```
 
 ### 3. Register as default PDF handler
@@ -39,7 +105,7 @@ chmod +x ~/.pdf-launcher/pdf-launcher
 Run this command to register your launcher as the default PDF handler:
 
 ```bash
-duti -x com.adobe.pdf ~/.pdf-launcher/pdf-launcher
+duti -x com.adobe.pdf ~/.pdf-launcher/PDF\ Launcher.app
 ```
 
 If you don't have `duti`, install it:
@@ -63,7 +129,7 @@ Try double-clicking a PDF file. It should:
 
 ## How It Works
 
-1. **Double-click PDF** → macOS launches `pdf-launcher` with the file path
+1. **Double-click PDF** → macOS launches `PDF Launcher.app` with the file path
 2. **Launcher detects** if the local server is running; if not, starts it
 3. **Browser opens** with the Render app URL + local server PDF link
 4. **Web app fetches** PDF from localhost and displays it
@@ -103,3 +169,4 @@ rm -rf ~/.pdf-launcher
 - PIDs are stored in `/tmp/pdf-launcher-server.pid`
 - Server runs in background and persists across PDF opens
 - Requires Node.js to be installed and in PATH
+- Override the editor URL by setting `PDF_LAUNCHER_BASE_URL` (defaults to `https://pdffffing.onrender.com`)
