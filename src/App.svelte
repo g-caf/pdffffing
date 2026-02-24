@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import FileUploader from './components/FileUploader.svelte';
   import PDFViewer from './components/PDFViewer.svelte';
   import PageReorder from './components/PageReorder.svelte';
@@ -11,6 +12,27 @@
   let hasModifications = false;
   let showReorderView = false;
   let pdfViewer;
+
+  // Handle PDF loaded from launcher
+  onMount(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const pdfUrl = params.get('pdf');
+    
+    if (pdfUrl) {
+      try {
+        const response = await fetch(pdfUrl);
+        if (!response.ok) throw new Error('Failed to fetch PDF');
+        const arrayBuffer = await response.arrayBuffer();
+        
+        loadedFiles = [{ arrayBuffer }];
+        updateCurrentPDF(arrayBuffer, { isNewDocument: true });
+        await processor.loadPDF(currentPDF);
+      } catch (error) {
+        console.error('Error loading PDF from launcher:', error);
+        alert('Failed to load PDF. Please try again.');
+      }
+    }
+  });
 
   // Version counters for explicit change tracking
   let pdfVersion = 0;        // increments on ANY pdf change (edit/reorder/merge)
@@ -254,11 +276,13 @@
       </div>
 
       <div style="display: {showReorderView ? 'block' : 'none'}">
-        <PageReorder
-          pdfData={currentPDF}
-          {thumbnailsVersion}
-          on:reorder={handleReorder}
-        />
+        {#key thumbnailsVersion}
+          <PageReorder
+            pdfData={currentPDF}
+            {thumbnailsVersion}
+            on:reorder={handleReorder}
+          />
+        {/key}
       </div>
       <div style="display: {showReorderView ? 'none' : 'block'}">
         <PDFViewer

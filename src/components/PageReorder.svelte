@@ -26,6 +26,7 @@
 
   // Reload only when thumbnailsVersion actually changes (new document loaded)
   $: if (pdfData && thumbnailsVersion > 0 && thumbnailsVersion !== lastLoadedVersion && lastLoadedVersion !== -1) {
+    console.log('PageReorder: thumbnailsVersion changed from', lastLoadedVersion, 'to', thumbnailsVersion);
     lastLoadedVersion = thumbnailsVersion;
     loadAllPages();
   }
@@ -33,6 +34,8 @@
   async function loadAllPages() {
     const myId = ++loadId;
     if (!pdfData) return;
+
+    console.log('PageReorder: loadAllPages called, loadId:', myId);
 
     try {
       // Only show loading if we don't have pages yet
@@ -49,6 +52,8 @@
       pageCount = count;
       const newPages = [];
 
+      console.log('PageReorder: Loading', count, 'pages');
+
       for (let i = 1; i <= pageCount; i++) {
         const canvas = document.createElement('canvas');
         await renderer.renderPage(i, canvas);
@@ -64,6 +69,7 @@
 
       // Update pages atomically to prevent blink
       pages = newPages;
+      console.log('PageReorder: Pages loaded, originalIndices:', pages.map(p => p.originalIndex));
     } catch (error) {
       console.error('Error loading pages:', error);
       alert('Failed to load PDF pages. Please try again.');
@@ -110,9 +116,12 @@
     pages = newPages;
     draggedIndex = null;
 
+    const newOrder = pages.map(p => p.originalIndex);
+    console.log('PageReorder: Dispatching reorder with newOrder:', newOrder);
+
     // Dispatch reorder - thumbnails stay as-is since thumbnailsVersion won't change
     dispatch('reorder', {
-      newOrder: pages.map(p => p.originalIndex)
+      newOrder
     });
   }
 
