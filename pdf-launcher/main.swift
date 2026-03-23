@@ -40,9 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Start the local server (or verify it's running)
         startLocalServer()
-
-        // Wait a moment for server to start
-        usleep(500000) // 500ms
+        waitForServerReady()
 
         for pdfPath in paths {
             guard fileManager.fileExists(atPath: pdfPath) else {
@@ -64,7 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeTargetURL(for pdfPath: String) -> URL? {
-        let baseURL = ProcessInfo.processInfo.environment["PDF_LAUNCHER_BASE_URL"] ?? "https://pdffffing.onrender.com"
+        let baseURL = ProcessInfo.processInfo.environment["PDF_LAUNCHER_BASE_URL"] ?? "http://localhost:7654"
         let trimmedBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedBase = trimmedBase.hasSuffix("/") ? String(trimmedBase.dropLast()) : trimmedBase
 
@@ -139,6 +137,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let exePath = CommandLine.arguments[0]
         let exeDir = (exePath as NSString).deletingLastPathComponent
         return "\(exeDir)/server.js"
+    }
+
+    private func waitForServerReady() {
+        guard let healthURL = URL(string: "http://localhost:7654/health") else {
+            return
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        let maxAttempts = 10
+        let delay: UInt32 = 300_000 // 300ms
+
+        for _ in 0..<maxAttempts {
+            let task = URLSession.shared.dataTask(with: healthURL) { _, response, _ in
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    semaphore.signal()
+                }
+            }
+            task.resume()
+
+            if semaphore.wait(timeout: .now() + .milliseconds(350)) == .success {
+                return
+            }
+
+            usleep(delay)
+        }
     }
 }
 
