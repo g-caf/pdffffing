@@ -83,6 +83,7 @@ export async function detectFormFields(pdfJsPage) {
         type: mapFieldType(annotation),
         rect: annotation.rect || [0, 0, 0, 0],
         value: annotation.fieldValue ?? annotation.buttonValue ?? '',
+        optionValue: annotation.buttonValue || annotation.exportValue || annotation.fieldValue || annotation.id,
         options: annotation.options?.map(o => o.displayValue || o) || [],
         required: annotation.required || false,
         readOnly: annotation.readOnly || false
@@ -160,6 +161,7 @@ export async function detectFormFieldsFromDocument(pdfJsDoc) {
             type: mapAcroFieldType(field.type),
             rect: field.rect || [0, 0, 100, 20],
             value: field.value || '',
+            optionValue: field.exportValue || field.value || field.id,
             options: field.options || [],
             required: field.required || false,
             readOnly: field.readOnly || false,

@@ -55,15 +55,41 @@
     selectedItem = null;
   }
 
-  export function finalizeAll() {
-    return textItems.map(item => ({
-      text: item.text,
-      x: item.x,
-      y: canvasHeight - item.y, // Flip Y for PDF coordinates
-      fontSize: item.fontSize,
-      fontFamily: getFontName(item),
-      color: hexToRgb(item.color)
-    }));
+  export function finalizeAll(renderScale = 1) {
+    return textItems.map(item => {
+      const base = {
+        x: item.x / renderScale,
+        width: item.width / renderScale,
+        height: item.height / renderScale,
+        color: hexToRgb(item.color)
+      };
+
+      if (item.isSignature) {
+        return {
+          ...base,
+          type: 'signature',
+          y: (canvasHeight - item.y - item.height) / renderScale,
+          signatureData: item.signatureData
+        };
+      }
+
+      if (item.isCheckmark) {
+        return {
+          ...base,
+          type: 'checkmark',
+          y: (canvasHeight - item.y - item.height) / renderScale
+        };
+      }
+
+      return {
+        ...base,
+        type: 'text',
+        text: item.text,
+        y: (canvasHeight - item.y - item.fontSize) / renderScale,
+        fontSize: item.fontSize / renderScale,
+        fontFamily: getFontName(item)
+      };
+    });
   }
 
   function getFontName(item) {

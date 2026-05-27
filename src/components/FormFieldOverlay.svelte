@@ -13,7 +13,9 @@
   $: {
     fields.forEach(field => {
       if (!(field.id in fieldValues)) {
-        if (field.type === 'checkbox') {
+        if (field.type === 'radio') {
+          fieldValues[field.id] = field.value === field.optionValue || field.checked === true;
+        } else if (field.type === 'checkbox') {
           // Only check if value is explicitly true or 'true'
           fieldValues[field.id] = field.value === true || field.value === 'true';
         } else {
@@ -34,7 +36,16 @@
   export function getFieldValues() {
     const result = {};
     fields.forEach(field => {
-      result[field.name] = fieldValues[field.id];
+      if (field.type !== 'radio') {
+        result[field.name] = fieldValues[field.id];
+      }
+    });
+
+    Object.entries(groupedRadios).forEach(([name, radioFields]) => {
+      const selected = radioFields.find(field => fieldValues[field.id]);
+      if (selected) {
+        result[name] = selected.optionValue || selected.value || selected.id;
+      }
     });
     return result;
   }
@@ -142,7 +153,7 @@
         <input
           type="radio"
           name={field.name}
-          value={field.id}
+          value={field.optionValue || field.id}
           checked={fieldValues[field.id]}
           on:change={() => {
             groupedRadios[field.name]?.forEach(f => {

@@ -2,11 +2,12 @@
 
 const http = require('http');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const url = require('url');
 
 const PORT = 7654;
 const DIST_DIR = path.join(__dirname, 'dist');
+const REGISTRY_FILE = path.join(os.tmpdir(), 'pdf-launcher-requests.json');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -51,10 +52,42 @@ function serveFile(filePath, res) {
   });
 }
 
+function readRegistry() {
+  try {
+    const raw = fs.readFileSync(REGISTRY_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function isRegisteredRequest(token, filePath) {
+  if (!token) return false;
+
+  const registry = readRegistry();
+  const entry = registry[token];
+  if (!entry || !entry.filePath || !entry.expiresAt) return false;
+  if (Date.now() > entry.expiresAt) return false;
+
+  return path.resolve(entry.filePath) === path.resolve(filePath);
+}
+
+function isPdfFile(filePath) {
+  if (path.extname(filePath).toLowerCase() !== '.pdf') return false;
+
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const header = Buffer.alloc(4);
+    fs.readSync(fd, header, 0, 4, 0);
+    return header.toString('ascii') === '%PDF';
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 const server = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = new URL(req.url, 'http://127.0.0.1');
   const pathname = parsedUrl.pathname;
-  const query = parsedUrl.query;
 
   if (pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -62,8 +95,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/serve' && query.file) {
-    const filePath = decodeURIComponent(query.file);
+  if (pathname === '/serve' && parsedUrl.searchParams.has('file')) {
+    const filePath = parsedUrl.searchParams.get('file');
+    const token = parsedUrl.searchParams.get('token');
+
+    if (!isRegisteredRequest(token, filePath)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Access denied');
+      return;
+    }
 
     fs.stat(filePath, (err, stats) => {
       if (err) {
@@ -75,6 +115,18 @@ const server = http.createServer((req, res) => {
       if (!stats.isFile()) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         res.end('Access denied');
+        return;
+      }
+
+      try {
+        if (!isPdfFile(filePath)) {
+          res.writeHead(415, { 'Content-Type': 'text/plain' });
+          res.end('Only PDF files can be served');
+          return;
+        }
+      } catch {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Could not validate file');
         return;
       }
 

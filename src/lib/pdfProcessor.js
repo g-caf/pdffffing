@@ -1,5 +1,21 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
+function dataUrlToBytes(dataUrl) {
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function colorFromOption(color) {
+  return color ? rgb(color.r, color.g, color.b) : rgb(0, 0, 0);
+}
+
 export class PDFProcessor {
   constructor() {
     this.pdfDoc = null;
@@ -61,13 +77,56 @@ export class PDFProcessor {
 
     const font = await this.pdfDoc.embedFont(fontKey);
     const fontSize = options.fontSize || 12;
-    const color = options.color ? rgb(options.color.r, options.color.g, options.color.b) : rgb(0, 0, 0);
+    const color = colorFromOption(options.color);
 
     page.drawText(text, {
       x,
       y,
       size: fontSize,
       font,
+      color
+    });
+  }
+
+  async addImage(pageIndex, dataUrl, x, y, width, height) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+
+    const pages = this.pdfDoc.getPages();
+    const page = pages[pageIndex];
+    if (!page) throw new Error(`Page ${pageIndex} not found`);
+
+    const imageBytes = dataUrlToBytes(dataUrl);
+    const image = await this.pdfDoc.embedPng(imageBytes);
+
+    page.drawImage(image, {
+      x,
+      y,
+      width,
+      height
+    });
+  }
+
+  async addCheckmark(pageIndex, x, y, width, height, options = {}) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+
+    const pages = this.pdfDoc.getPages();
+    const page = pages[pageIndex];
+    if (!page) throw new Error(`Page ${pageIndex} not found`);
+
+    const color = colorFromOption(options.color);
+    const thickness = Math.max(1, Math.min(width, height) * 0.14);
+
+    page.drawLine({
+      start: { x: x + width * 0.18, y: y + height * 0.48 },
+      end: { x: x + width * 0.42, y: y + height * 0.22 },
+      thickness,
+      color
+    });
+
+    page.drawLine({
+      start: { x: x + width * 0.42, y: y + height * 0.22 },
+      end: { x: x + width * 0.86, y: y + height * 0.82 },
+      thickness,
       color
     });
   }

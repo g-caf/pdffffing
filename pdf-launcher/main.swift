@@ -1,7 +1,13 @@
 import Cocoa
 
+struct LaunchRegistryEntry: Codable {
+    let filePath: String
+    let expiresAt: Int64
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate {
     private let fileManager = FileManager.default
+    private let registryPath = NSTemporaryDirectory() + "pdf-launcher-requests.json"
     private var didHandleOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -48,7 +54,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 continue
             }
 
-            guard let targetURL = makeTargetURL(for: pdfPath) else {
+            guard let token = registerOpenedFile(path: pdfPath),
+                  let targetURL = makeTargetURL(for: pdfPath, token: token) else {
                 print("Error: Could not construct URL")
                 continue
             }
@@ -61,7 +68,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func makeTargetURL(for pdfPath: String) -> URL? {
+    private func makeTargetURL(for pdfPath: String, token: String) -> URL? {
         let baseURL = ProcessInfo.processInfo.environment["PDF_LAUNCHER_BASE_URL"] ?? "http://localhost:7654"
         let trimmedBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedBase = trimmedBase.hasSuffix("/") ? String(trimmedBase.dropLast()) : trimmedBase
@@ -75,7 +82,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         serveComponents.host = "localhost"
         serveComponents.port = 7654
         serveComponents.path = "/serve"
-        serveComponents.queryItems = [URLQueryItem(name: "file", value: pdfPath)]
+        serveComponents.queryItems = [
+            URLQueryItem(name: "file", value: pdfPath),
+            URLQueryItem(name: "token", value: token)
+        ]
 
         guard let serveURL = serveComponents.url else {
             return nil
@@ -83,6 +93,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editorComponents.queryItems = [URLQueryItem(name: "pdf", value: serveURL.absoluteString)]
         return editorComponents.url
+    }
+
+    private func registerOpenedFile(path pdfPath: String) -> String? {
+        let token = UUID().uuidString + UUID().uuidString
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let expiresAt = Int64(Date().addingTimeInterval(5 * 60).timeIntervalSince1970 * 1000)
+        var registry = readRegistry()
+
+        registry = registry.filter { _, entry in entry.expiresAt > now }
+        registry[token] = LaunchRegistryEntry(filePath: pdfPath, expiresAt: expiresAt)
+
+        do {
+            let data = try JSONEncoder().encode(registry)
+            try data.write(to: URL(fileURLWithPath: registryPath), options: .atomic)
+            try? fileManager.setAttributes(
+                [.posixPermissions: 0o600],
+                ofItemAtPath: registryPath
+            )
+            return token
+        } catch {
+            print("Error registering file for launcher: \(error)")
+            return nil
+        }
+    }
+
+    private func readRegistry() -> [String: LaunchRegistryEntry] {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: registryPath)),
+              let registry = try? JSONDecoder().decode([String: LaunchRegistryEntry].self, from: data) else {
+            return [:]
+        }
+
+        return registry
     }
     
     // MARK: - Local Server Functions

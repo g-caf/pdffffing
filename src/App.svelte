@@ -120,6 +120,40 @@
     showReorderView = !showReorderView;
   }
 
+  async function addFinalizedItemToPDF(item) {
+    if (item.type === 'signature') {
+      await processor.addImage(
+        item.pageIndex,
+        item.signatureData,
+        item.x,
+        item.y,
+        item.width,
+        item.height
+      );
+      return;
+    }
+
+    if (item.type === 'checkmark') {
+      await processor.addCheckmark(
+        item.pageIndex,
+        item.x,
+        item.y,
+        item.width,
+        item.height,
+        item.options
+      );
+      return;
+    }
+
+    await processor.addText(
+      item.pageIndex,
+      item.text,
+      item.x,
+      item.y,
+      item.options
+    );
+  }
+
   async function handleAddText(event) {
     const { text, x, y, pageIndex, options } = event.detail;
 
@@ -155,13 +189,7 @@
           }
 
           for (const item of items) {
-            await processor.addText(
-              item.pageIndex,
-              item.text,
-              item.x,
-              item.y,
-              item.options
-            );
+            await addFinalizedItemToPDF(item);
           }
 
           const updatedBytes = await processor.saveToBytes();

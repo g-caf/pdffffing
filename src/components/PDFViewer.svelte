@@ -39,11 +39,9 @@
     for (let i = 0; i < pageCount; i++) {
       const editor = textEditors[i];
       if (editor) {
-        const items = editor.finalizeAll();
+        const items = editor.finalizeAll(renderer.scale);
         const formattedItems = items.map(item => ({
-          text: item.text,
-          x: item.x,
-          y: item.y,
+          ...item,
           pageIndex: i,
           options: {
             fontSize: item.fontSize,

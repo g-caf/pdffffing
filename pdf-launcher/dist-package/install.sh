@@ -7,6 +7,7 @@ INSTALL_DIR="$HOME/.pdf-launcher"
 mkdir -p "$INSTALL_DIR"
 cp -R "$APP_NAME" "$INSTALL_DIR/"
 cp server.js "$INSTALL_DIR/"
+cp package.json "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/server.js"
 
 if command -v codesign &> /dev/null; then

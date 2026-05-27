@@ -43,6 +43,7 @@ mkdir -p "$INSTALL_DIR"
 
 echo "Installing to $INSTALL_DIR..."
 cp server.js "$INSTALL_DIR/"
+cp package.json "$INSTALL_DIR/"
 chmod +x "$INSTALL_DIR/server.js"
 
 # Create app bundle
