@@ -9,6 +9,9 @@
   export let highlightColor = '#fff176';
 
   const dispatch = createEventDispatcher();
+  let colorInput;
+  let selectedHighlightId = null;
+  let selectedHighlightColor = highlightColor;
 
   function rectsOverlap(a, b) {
     return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -22,10 +25,10 @@
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
 
       const layer = document.getElementById(`text-layer-${pageWidth}-${pageHeight}-${textItems[0]?.id || 'empty'}`);
+      const range = selection.getRangeAt(0);
       if (!layer || !range.intersectsNode(layer)) return;
 
       const layerRect = layer.getBoundingClientRect();
-      const range = selection.getRangeAt(0);
       const selectionRects = Array.from(range.getClientRects())
         .filter((rect) => rect.width > 1 && rect.height > 1 && rectsOverlap(rect, layerRect))
         .map((rect) => {
@@ -52,11 +55,39 @@
       }
     }, 0);
   }
+
+  function editHighlightColor(highlight) {
+    selectedHighlightId = highlight.id;
+    selectedHighlightColor = highlight.color;
+
+    window.setTimeout(() => {
+      colorInput?.click();
+    }, 0);
+  }
+
+  function handleColorChange() {
+    if (!selectedHighlightId) return;
+
+    dispatch('highlightcolorchange', {
+      id: selectedHighlightId,
+      color: selectedHighlightColor
+    });
+  }
 </script>
 
-<div class="highlight-layer" aria-hidden="true">
+<input
+  bind:this={colorInput}
+  class="highlight-color-input"
+  type="color"
+  bind:value={selectedHighlightColor}
+  on:input={handleColorChange}
+  aria-label="Highlight color"
+/>
+
+<div class="highlight-layer" class:editable={highlightMode}>
   {#each highlights as highlight (highlight.id)}
-    <div
+    <button
+      type="button"
       class="highlight-rect"
       style="
         left: {(highlight.x / pageWidth) * 100}%;
@@ -65,7 +96,9 @@
         height: {(highlight.height / pageHeight) * 100}%;
         background: {highlight.color};
       "
-    ></div>
+      on:click={() => editHighlightColor(highlight)}
+      aria-label="Change highlight color"
+    ></button>
   {/each}
 </div>
 
@@ -98,14 +131,30 @@
   }
 
   .highlight-layer {
-    z-index: 8;
+    z-index: 11;
     pointer-events: none;
   }
 
   .highlight-rect {
     position: absolute;
+    border: 0;
+    padding: 0;
     opacity: 0.45;
     mix-blend-mode: multiply;
+    cursor: pointer;
+    pointer-events: none;
+  }
+
+  .highlight-layer.editable .highlight-rect {
+    pointer-events: auto;
+  }
+
+  .highlight-color-input {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .text-selection-layer {

@@ -23,8 +23,8 @@
   let isBold = false;
   let isItalic = false;
   let textColor = '#000000';
-  let isHighlightMode = false;
   let highlightColor = '#fff176';
+  let isTextBoxMode = false;
   let highlightsByPage = {};
   let textEditors = {};
   let formFieldOverlays = {};
@@ -103,6 +103,31 @@
       ...highlightsByPage,
       [index]: [...(highlightsByPage[index] || []), ...rects]
     };
+  }
+
+  function handleHighlightColorChange(index, event) {
+    const { id, color } = event.detail;
+
+    highlightsByPage = {
+      ...highlightsByPage,
+      [index]: (highlightsByPage[index] || []).map((highlight) => (
+        highlight.id === id ? { ...highlight, color } : highlight
+      ))
+    };
+  }
+
+  function toggleTextBoxMode() {
+    isTextBoxMode = !isTextBoxMode;
+    if (isTextBoxMode) {
+      isCheckmarkMode = false;
+    }
+  }
+
+  function toggleCheckmarkMode() {
+    isCheckmarkMode = !isCheckmarkMode;
+    if (isCheckmarkMode) {
+      isTextBoxMode = false;
+    }
   }
 
   export function getFormFieldValues() {
@@ -219,6 +244,8 @@
   function handleSignatureSave(event) {
     const { signatureData } = event.detail;
     pendingSignature = signatureData;
+    isTextBoxMode = false;
+    isCheckmarkMode = false;
     // User will click on PDF to place the signature
   }
 
@@ -334,11 +361,6 @@
           <input type="color" bind:value={textColor} />
         </div>
 
-        <div class="option-group">
-          <label>Highlight:</label>
-          <input type="color" bind:value={highlightColor} />
-        </div>
-
         <div class="option-group style-group">
           <button
             class="style-btn"
@@ -359,7 +381,7 @@
           <button
             class="style-btn checkmark-btn"
             class:active={isCheckmarkMode}
-            on:click={() => isCheckmarkMode = !isCheckmarkMode}
+            on:click={toggleCheckmarkMode}
             type="button"
             title="Insert checkmark"
           >
@@ -367,12 +389,12 @@
           </button>
           <button
             class="style-btn"
-            class:active={isHighlightMode}
-            on:click={() => isHighlightMode = !isHighlightMode}
+            class:active={isTextBoxMode}
+            on:click={toggleTextBoxMode}
             type="button"
-            title="Highlight selected text"
+            title="Add text box"
           >
-            H
+            T
           </button>
           <button
             class="style-btn signature-btn"
@@ -408,9 +430,10 @@
                   pageHeight={page.height}
                   textItems={page.textItems || []}
                   highlights={highlightsByPage[index] || []}
-                  highlightMode={isHighlightMode && !isFieldEditMode}
+                  highlightMode={!isTextBoxMode && !isCheckmarkMode && !pendingSignature && !isFieldEditMode && !page.formFields?.length}
                   {highlightColor}
                   on:highlight={(event) => handleHighlight(index, event)}
+                  on:highlightcolorchange={(event) => handleHighlightColorChange(index, event)}
                 />
 
                 {#if isFieldEditMode}
@@ -442,7 +465,7 @@
                     {isItalic}
                     {isCheckmarkMode}
                     bind:pendingSignature
-                    isInteractive={!isHighlightMode}
+                    isInteractive={isTextBoxMode || isCheckmarkMode || !!pendingSignature}
                   />
                 {/if}
               </div>
