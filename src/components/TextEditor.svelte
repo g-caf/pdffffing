@@ -9,6 +9,7 @@
   export let isItalic = false;
   export let isCheckmarkMode = false;
   export let pendingSignature = null;
+  export let isInteractive = true;
 
   const dispatch = createEventDispatcher();
 
@@ -270,6 +271,7 @@
 
 <div
   class="text-editor-overlay"
+  class:inactive={!isInteractive}
   on:mousemove={handleMouseMove}
   on:mouseup={handleMouseUp}
   on:click={handleOverlayClick}
@@ -338,6 +340,10 @@
     pointer-events: auto;
     z-index: 10;
     cursor: crosshair;
+  }
+
+  .text-editor-overlay.inactive {
+    pointer-events: none;
   }
 
   .text-item {

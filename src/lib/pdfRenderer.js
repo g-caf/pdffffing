@@ -43,6 +43,34 @@ export class PDFRenderer {
     await page.render(renderContext).promise;
   }
 
+  async getTextItems(pageNum) {
+    if (!this.pdfDoc) return [];
+
+    const page = await this.pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: this.scale });
+    const textContent = await page.getTextContent();
+
+    return textContent.items
+      .filter((item) => item.str && item.str.trim().length > 0)
+      .map((item, index) => {
+        const transform = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const fontHeight = Math.hypot(transform[2], transform[3]);
+        const width = item.width * viewport.scale;
+        const angle = Math.atan2(transform[1], transform[0]);
+
+        return {
+          id: `${pageNum}-${index}`,
+          text: item.str,
+          left: transform[4],
+          top: transform[5] - fontHeight,
+          width,
+          height: fontHeight,
+          fontSize: fontHeight,
+          angle
+        };
+      });
+  }
+
   async getAllPages() {
     if (!this.pdfDoc) return [];
 

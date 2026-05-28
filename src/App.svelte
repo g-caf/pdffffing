@@ -154,6 +154,17 @@
     );
   }
 
+  async function addFinalizedHighlightToPDF(highlight) {
+    await processor.addHighlight(
+      highlight.pageIndex,
+      highlight.x,
+      highlight.y,
+      highlight.width,
+      highlight.height,
+      { color: highlight.color }
+    );
+  }
+
   async function handleAddText(event) {
     const { text, x, y, pageIndex, options } = event.detail;
 
@@ -180,6 +191,22 @@
   async function handleDownload() {
     try {
       if (pdfViewer && !showReorderView) {
+        const highlights = pdfViewer.finalizeHighlights();
+
+        if (highlights.length > 0) {
+          if (!processor.pdfDoc) {
+            await processor.loadPDF(currentPDF);
+          }
+
+          for (const highlight of highlights) {
+            await addFinalizedHighlightToPDF(highlight);
+          }
+
+          const updatedBytes = await processor.saveToBytes();
+          currentPDF = updatedBytes.buffer;
+          hasModifications = true;
+        }
+
         // Finalize text additions
         const items = pdfViewer.finalizeText();
 

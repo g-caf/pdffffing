@@ -4,6 +4,7 @@
   import { detectFormFields, detectFormFieldsFromDocument, transformRect } from '../lib/formFieldDetector.js';
   import { OCRFormDetector } from '../lib/ocrFormDetector.js';
   import TextEditor from './TextEditor.svelte';
+  import TextSelectionLayer from './TextSelectionLayer.svelte';
   import FormFieldOverlay from './FormFieldOverlay.svelte';
   import FormFieldEditor from './FormFieldEditor.svelte';
   import SignaturePad from './SignaturePad.svelte';
@@ -22,6 +23,9 @@
   let isBold = false;
   let isItalic = false;
   let textColor = '#000000';
+  let isHighlightMode = false;
+  let highlightColor = '#fff176';
+  let highlightsByPage = {};
   let textEditors = {};
   let formFieldOverlays = {};
   let isLoading = false;
@@ -54,6 +58,51 @@
       }
     }
     return allItems;
+  }
+
+  export function finalizeHighlights() {
+    const allHighlights = [];
+
+    for (let i = 0; i < pageCount; i++) {
+      const pageHighlights = highlightsByPage[i] || [];
+      const page = pages[i];
+      if (!page) continue;
+
+      const formattedHighlights = pageHighlights.map((highlight) => ({
+        pageIndex: i,
+        x: highlight.x / renderer.scale,
+        y: (page.height - highlight.y - highlight.height) / renderer.scale,
+        width: highlight.width / renderer.scale,
+        height: highlight.height / renderer.scale,
+        color: hexToRgb(highlight.color)
+      }));
+
+      allHighlights.push(...formattedHighlights);
+    }
+
+    highlightsByPage = {};
+    return allHighlights;
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    return {
+      r: parseInt(clean.substr(0, 2), 16) / 255,
+      g: parseInt(clean.substr(2, 2), 16) / 255,
+      b: parseInt(clean.substr(4, 2), 16) / 255
+    };
+  }
+
+  function handleHighlight(index, event) {
+    const rects = event.detail.rects.map((rect) => ({
+      ...rect,
+      id: `${Date.now()}-${Math.random()}`
+    }));
+
+    highlightsByPage = {
+      ...highlightsByPage,
+      [index]: [...(highlightsByPage[index] || []), ...rects]
+    };
   }
 
   export function getFormFieldValues() {
@@ -205,6 +254,7 @@
       const newPages = [];
       textEditors = {};
       formFieldOverlays = {};
+      highlightsByPage = {};
       let foundFormFields = false;
 
       // Try document-level form detection first
@@ -249,6 +299,7 @@
           dataUrl: canvas.toDataURL(),
           width: canvas.width,
           height: canvas.height,
+          textItems: await localRenderer.getTextItems(i),
           formFields
         });
       }
@@ -283,6 +334,11 @@
           <input type="color" bind:value={textColor} />
         </div>
 
+        <div class="option-group">
+          <label>Highlight:</label>
+          <input type="color" bind:value={highlightColor} />
+        </div>
+
         <div class="option-group style-group">
           <button
             class="style-btn"
@@ -308,6 +364,15 @@
             title="Insert checkmark"
           >
             ✓
+          </button>
+          <button
+            class="style-btn"
+            class:active={isHighlightMode}
+            on:click={() => isHighlightMode = !isHighlightMode}
+            type="button"
+            title="Highlight selected text"
+          >
+            H
           </button>
           <button
             class="style-btn signature-btn"
@@ -338,6 +403,16 @@
               <div class="canvas-wrapper" style="aspect-ratio: {page.width}/{page.height};">
                 <img src={page.dataUrl} alt="Page {page.pageNum}" class="page-image" class:text-mode={isTextMode && !page.formFields?.length && !isFieldEditMode} />
 
+                <TextSelectionLayer
+                  pageWidth={page.width}
+                  pageHeight={page.height}
+                  textItems={page.textItems || []}
+                  highlights={highlightsByPage[index] || []}
+                  highlightMode={isHighlightMode && !isFieldEditMode}
+                  {highlightColor}
+                  on:highlight={(event) => handleHighlight(index, event)}
+                />
+
                 {#if isFieldEditMode}
                   <FormFieldEditor
                     bind:fields={editingFields}
@@ -367,6 +442,7 @@
                     {isItalic}
                     {isCheckmarkMode}
                     bind:pendingSignature
+                    isInteractive={!isHighlightMode}
                   />
                 {/if}
               </div>

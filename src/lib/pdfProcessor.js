@@ -131,6 +131,23 @@ export class PDFProcessor {
     });
   }
 
+  async addHighlight(pageIndex, x, y, width, height, options = {}) {
+    if (!this.pdfDoc) throw new Error('No PDF loaded');
+
+    const pages = this.pdfDoc.getPages();
+    const page = pages[pageIndex];
+    if (!page) throw new Error(`Page ${pageIndex} not found`);
+
+    page.drawRectangle({
+      x,
+      y,
+      width,
+      height,
+      color: colorFromOption(options.color),
+      opacity: 0.45
+    });
+  }
+
   async removePage(pageIndex) {
     if (!this.pdfDoc) throw new Error('No PDF loaded');
     this.pdfDoc.removePage(pageIndex);
