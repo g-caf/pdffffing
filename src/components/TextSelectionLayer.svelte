@@ -12,9 +12,93 @@
   let colorInput;
   let selectedHighlightId = null;
   let selectedHighlightColor = highlightColor;
+  let lastSelectionSignature = '';
+  let lastSelectionTime = 0;
 
   function rectsOverlap(a, b) {
     return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  }
+
+  function rectContains(outer, inner) {
+    const tolerance = 1;
+
+    return (
+      outer.x <= inner.x + tolerance &&
+      outer.y <= inner.y + tolerance &&
+      outer.x + outer.width >= inner.x + inner.width - tolerance &&
+      outer.y + outer.height >= inner.y + inner.height - tolerance
+    );
+  }
+
+  function verticalOverlapRatio(a, b) {
+    const top = Math.max(a.y, b.y);
+    const bottom = Math.min(a.y + a.height, b.y + b.height);
+    const overlap = Math.max(0, bottom - top);
+
+    return overlap / Math.min(a.height, b.height);
+  }
+
+  function areOnSameLine(a, b) {
+    const centerDelta = Math.abs((a.y + a.height / 2) - (b.y + b.height / 2));
+    return verticalOverlapRatio(a, b) > 0.55 || centerDelta < Math.max(2, Math.min(a.height, b.height) * 0.45);
+  }
+
+  function normalizeSelectionRects(rects) {
+    const uniqueRects = [];
+    const seen = new Set();
+
+    for (const rect of rects) {
+      const normalized = {
+        ...rect,
+        x: Math.round(rect.x * 10) / 10,
+        y: Math.round(rect.y * 10) / 10,
+        width: Math.round(rect.width * 10) / 10,
+        height: Math.round(rect.height * 10) / 10
+      };
+      const key = `${Math.round(normalized.x)}:${Math.round(normalized.y)}:${Math.round(normalized.width)}:${Math.round(normalized.height)}`;
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueRects.push(normalized);
+      }
+    }
+
+    const withoutContainedRects = uniqueRects.filter((rect, index) => (
+      !uniqueRects.some((other, otherIndex) => (
+        otherIndex !== index &&
+        rectContains(other, rect) &&
+        other.width * other.height >= rect.width * rect.height
+      ))
+    ));
+
+    return withoutContainedRects
+      .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+      .reduce((merged, rect) => {
+        const previous = merged[merged.length - 1];
+        const maxGap = Math.max(10, rect.height * 1.5, previous?.height || 0);
+
+        if (previous && areOnSameLine(previous, rect) && rect.x <= previous.x + previous.width + maxGap) {
+          const left = Math.min(previous.x, rect.x);
+          const top = Math.min(previous.y, rect.y);
+          const right = Math.max(previous.x + previous.width, rect.x + rect.width);
+          const bottom = Math.max(previous.y + previous.height, rect.y + rect.height);
+
+          previous.x = left;
+          previous.y = top;
+          previous.width = right - left;
+          previous.height = bottom - top;
+          return merged;
+        }
+
+        merged.push({ ...rect });
+        return merged;
+      }, []);
+  }
+
+  function createSelectionSignature(rects) {
+    return rects
+      .map((rect) => `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`)
+      .join('|');
   }
 
   function handleMouseUp() {
@@ -29,7 +113,7 @@
       if (!layer || !range.intersectsNode(layer)) return;
 
       const layerRect = layer.getBoundingClientRect();
-      const selectionRects = Array.from(range.getClientRects())
+      const selectionRects = normalizeSelectionRects(Array.from(range.getClientRects())
         .filter((rect) => rect.width > 1 && rect.height > 1 && rectsOverlap(rect, layerRect))
         .map((rect) => {
           const left = Math.max(rect.left, layerRect.left);
@@ -47,9 +131,19 @@
             color: highlightColor
           };
         })
-        .filter((rect) => rect.width > 1 && rect.height > 1);
+        .filter((rect) => rect.width > 1 && rect.height > 1));
 
       if (selectionRects.length > 0) {
+        const now = Date.now();
+        const signature = createSelectionSignature(selectionRects);
+
+        if (signature === lastSelectionSignature && now - lastSelectionTime < 500) {
+          selection.removeAllRanges();
+          return;
+        }
+
+        lastSelectionSignature = signature;
+        lastSelectionTime = now;
         dispatch('highlight', { rects: selectionRects });
         selection.removeAllRanges();
       }
